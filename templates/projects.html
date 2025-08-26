@@ -1,0 +1,215 @@
+{% extends "base_new.html" %}
+
+{% block title %}Projects - Lumorange Management{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Projects</h1>
+        <p class="page-subtitle">Track and manage your projects.</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+        <i class="fas fa-plus me-2"></i>Add Project
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Department</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th class="text-end">Budget</th>
+                        <th>Progress</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>{{ project[1] }}</strong>
+                                <div class="text-muted small">{{ project[2] if project[2] and project[2]|length > 50 else project[2] }}</div>
+                            </div>
+                        </td>
+                        <td>{{ project[3] or 'No Department' }}</td>
+                        <td>{{ project[4] or 'No Client' }}</td>
+                        <td>
+                            {% set status_color = {'Planned': 'secondary', 'In Progress': 'primary', 'Completed': 'success', 'On Hold': 'warning', 'Cancelled': 'danger'}.get(project[5], 'secondary') %}
+                            <span class="badge bg-{{ status_color }}-subtle text-{{ status_color }}">{{ project[5] }}</span>
+                        </td>
+                        <td class="text-end">{{ format_currency(project[6] or 0) }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 60px; height: 8px;">
+                                    <div class="progress-bar" style="width: {{ project[7]|default(0) }}%;"></div>
+                                </div>
+                                <small>{{ project[7] or 0 }}%</small>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary edit-project-btn" data-project="{{ project|tojson|safe }}"><i class="fas fa-edit"></i></button>
+                            <a href="/delete_project/{{ project[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this project?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Project Modal -->
+<div class="modal fade" id="addProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/add_project" method="post">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Project Name</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Department</label>
+                            <select name="department_id" class="form-select" required>
+                                <option value="">Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept[0] }}">{{ dept[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Client</label>
+                            <select name="client_id" class="form-select">
+                                <option value="">Select Client (Optional)</option>
+                                {% for client in clients %}
+                                <option value="{{ client[0] }}">{{ client[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="Planned">Planned</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Budget</label>
+                            <input type="number" step="0.01" name="budget" class="form-control">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Progress (%)</label>
+                            <input type="number" min="0" max="100" name="progress" class="form-control" value="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Add Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal fade" id="editProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/update_project" method="post" id="editProjectForm">
+                    <input type="hidden" name="project_id" id="edit_project_id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Project Name</label>
+                            <input type="text" name="name" id="edit_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="Planned">Planned</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Budget</label>
+                            <input type="number" step="0.01" name="budget" id="edit_budget" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Progress (%)</label>
+                            <input type="number" min="0" max="100" name="progress" id="edit_progress" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Update Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Event listeners for edit buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.edit-project-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const project = JSON.parse(this.dataset.project);
+            editProject(project);
+        });
+    });
+});
+
+function editProject(project) {
+    document.getElementById('edit_project_id').value = project[0] || '';
+    document.getElementById('edit_name').value = project[1] || '';
+    document.getElementById('edit_description').value = project[2] || '';
+    document.getElementById('edit_status').value = project[5] || '';
+    document.getElementById('edit_budget').value = project[6] || 0;
+    document.getElementById('edit_progress').value = project[7] || 0;
+    new bootstrap.Modal(document.getElementById('editProjectModal')).show();
+}
+</script>
+{% endblock %}

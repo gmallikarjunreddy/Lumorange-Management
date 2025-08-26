@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Lumorange Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 60vh;">
+    <div class="text-center">
+        <div class="error-icon mb-4">
+            <i class="fas fa-exclamation-triangle" style="font-size: 5rem; color: #ffc107;"></i>
+        </div>
+        <h1 class="display-1 fw-bold text-primary">404</h1>
+        <h2 class="mb-4">Page Not Found</h2>
+        <p class="text-muted mb-4">Sorry, the page you are looking for doesn't exist or has been moved.</p>
+        
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-home me-2"></i>Go to Dashboard
+            </a>
+            <button onclick="history.back()" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Go Back
+            </button>
+        </div>
+        
+        <div class="mt-5">
+            <h5>Quick Links:</h5>
+            <div class="row justify-content-center mt-3">
+                <div class="col-auto">
+                    <a href="/employees" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-users me-1"></i>Employees
+                    </a>
+                </div>
+                <div class="col-auto">
+                    <a href="/departments" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-sitemap me-1"></i>Departments
+                    </a>
+                </div>
+                <div class="col-auto">
+                    <a href="/projects" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-project-diagram me-1"></i>Projects
+                    </a>
+                </div>
+                <div class="col-auto">
+                    <a href="/clients" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-handshake me-1"></i>Clients
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

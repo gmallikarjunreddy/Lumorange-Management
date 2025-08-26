@@ -1,0 +1,1554 @@
+{% extends "base.html" %}
+
+{% block title %}Agreements - Lumorange Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">📋 Legal Agreements</h1>
+            <p class="page-subtitle">Manage and print legal documents for Lumorange</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-outline-primary" onclick="printAll()">
+                <i class="fas fa-print"></i> Print All
+            </button>
+            <button class="btn btn-success" onclick="openCustomAgreementModal()">
+                <i class="fas fa-plus"></i> Create Custom Agreement
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Print-specific styles */
+@media print {
+    .no-print, .sidebar, .page-header, .btn, .modal, .agreement-actions {
+        display: none !important;
+    }
+    
+    body {
+        font-size: 12pt;
+        line-height: 1.4;
+        color: #000 !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    
+    .agreements-container {
+        display: block !important;
+        gap: 0 !important;
+    }
+    
+    .agreement-card {
+        break-after: page;
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        border-radius: 0 !important;
+        margin-bottom: 0 !important;
+        page-break-inside: avoid;
+        width: 100% !important;
+    }
+    
+    .agreement-header {
+        border-bottom: 2px solid #000 !important;
+        background: #f8f9fa !important;
+        color: #000 !important;
+        padding: 1rem !important;
+        margin: 0 !important;
+    }
+    
+    .agreement-title {
+        color: #000 !important;
+        font-size: 18pt !important;
+        margin: 0 !important;
+    }
+    
+    .agreement-subtitle {
+        color: #000 !important;
+        margin: 0.5rem 0 0 0 !important;
+    }
+    
+    .agreement-content {
+        padding: 1rem !important;
+        margin: 0 !important;
+    }
+    
+    .company-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #000;
+    }
+    
+    .company-logo {
+        display: none !important;
+    }
+    
+    .form-section {
+        background: transparent !important;
+        border: 1px solid #000 !important;
+        padding: 1rem !important;
+        margin: 1rem 0 !important;
+    }
+    
+    .form-input {
+        border: none !important;
+        border-bottom: 1px solid #000 !important;
+        background: transparent !important;
+        padding: 0.25rem 0 !important;
+        min-height: 1.5rem !important;
+        font-size: 11pt !important;
+    }
+    
+    .signature-section {
+        margin-top: 2rem !important;
+        border-top: 1px solid #000 !important;
+        padding-top: 1rem !important;
+    }
+    
+    .signature-line {
+        border-bottom: 1px solid #000 !important;
+        height: 40px !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        color: #000 !important;
+    }
+    
+    .legal-text p {
+        margin-bottom: 1rem !important;
+        text-align: justify !important;
+    }
+    
+    .clause-number {
+        font-weight: bold !important;
+        color: #000 !important;
+    }
+}
+
+/* Agreement-specific styles */
+.agreements-container {
+    display: grid;
+    gap: 2rem;
+}
+
+.agreement-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.agreement-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.agreement-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.agreement-subtitle {
+    opacity: 0.9;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.agreement-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.agreement-content {
+    padding: 2rem;
+    line-height: 1.6;
+}
+
+.company-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.company-logo {
+    font-size: 2rem;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+}
+
+.signature-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.signature-block {
+    text-align: center;
+}
+
+.signature-line {
+    border-bottom: 1px solid #000;
+    height: 50px;
+    margin-bottom: 0.5rem;
+}
+
+.form-section {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-input {
+    border-bottom: 1px solid #000;
+    padding: 0.25rem 0;
+    min-height: 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #000;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-bottom: 2px solid #667eea;
+    background-color: #f8f9fa;
+}
+
+.form-input.filled {
+    background-color: #e8f5e8;
+    border-bottom: 2px solid #28a745;
+}
+
+.legal-text {
+    text-align: justify;
+    margin-bottom: 1.5rem;
+}
+
+.clause-number {
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* Modal styles for custom agreement */
+.modal-dialog-lg {
+    max-width: 800px;
+}
+
+.custom-agreement-form {
+    display: grid;
+    gap: 1rem;
+}
+</style>
+
+<div class="agreements-container">
+    <!-- Employment Agreement -->
+    <div class="agreement-card" id="employment-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-user-tie"></i>
+                Employment Agreement
+            </h2>
+            <p class="agreement-subtitle">Standard employment contract for new hires</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('employment-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillEmploymentForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>EMPLOYMENT AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Employee Name:</label>
+                    <input type="text" class="form-input" id="emp_name" placeholder="Full Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Position:</label>
+                    <input type="text" class="form-input" id="emp_position" placeholder="Job Title">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Department:</label>
+                    <input type="text" class="form-input" id="emp_department" placeholder="Department">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Start Date:</label>
+                    <input type="date" class="form-input" id="emp_start_date">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Salary (₹/month):</label>
+                    <input type="text" class="form-input" id="emp_salary" placeholder="Amount in Rupees">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. EMPLOYMENT TERMS:</span> This agreement is entered into between Lumorange Technologies ("Company") and the above-named employee ("Employee") for the position specified above.</p>
+                
+                <p><span class="clause-number">2. DUTIES AND RESPONSIBILITIES:</span> Employee agrees to perform duties assigned by the Company with dedication, professionalism, and to the best of their ability. Employee will report to their immediate supervisor and comply with all company policies.</p>
+                
+                <p><span class="clause-number">3. COMPENSATION:</span> Company agrees to pay the Employee the salary specified above, payable monthly. Salary reviews may be conducted annually at Company's discretion.</p>
+                
+                <p><span class="clause-number">4. CONFIDENTIALITY:</span> Employee agrees to maintain strict confidentiality regarding all company information, client data, proprietary technologies, and business processes during and after employment.</p>
+                
+                <p><span class="clause-number">5. WORKING HOURS:</span> Standard working hours are Monday to Friday, 9:00 AM to 6:00 PM, with reasonable flexibility as business needs require.</p>
+                
+                <p><span class="clause-number">6. BENEFITS:</span> Employee is eligible for company benefits including health insurance, paid leave, and professional development opportunities as per company policy.</p>
+                
+                <p><span class="clause-number">7. TERMINATION:</span> Either party may terminate this agreement with 30 days written notice. Company reserves the right to terminate immediately for cause.</p>
+                
+                <p><span class="clause-number">8. GOVERNING LAW:</span> This agreement is governed by Indian law and subject to the jurisdiction of courts in [City].</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Employee Signature</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Company Representative</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Non-Disclosure Agreement -->
+    <div class="agreement-card" id="nda-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-shield-alt"></i>
+                Non-Disclosure Agreement (NDA)
+            </h2>
+            <p class="agreement-subtitle">Confidentiality agreement for employees and clients</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('nda-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillNDAForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>NON-DISCLOSURE AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Party Name:</label>
+                    <input type="text" class="form-input" id="nda_party_name" placeholder="Individual/Company Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Party Type:</label>
+                    <select class="form-input" id="nda_party_type">
+                        <option>Employee</option>
+                        <option>Client</option>
+                        <option>Contractor</option>
+                        <option>Vendor</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Effective Date:</label>
+                    <input type="date" class="form-input" id="nda_date">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Duration (Years):</label>
+                    <input type="number" class="form-input" id="nda_duration" value="3">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. CONFIDENTIAL INFORMATION:</span> "Confidential Information" includes all non-public, proprietary information disclosed by Lumorange Technologies, including but not limited to: technical data, source code, business processes, client information, financial data, and strategic plans.</p>
+                
+                <p><span class="clause-number">2. OBLIGATIONS:</span> The receiving party agrees to:</p>
+                <ul>
+                    <li>Keep all Confidential Information strictly confidential</li>
+                    <li>Not disclose information to third parties without written consent</li>
+                    <li>Use information solely for the intended business purpose</li>
+                    <li>Return or destroy all confidential materials upon request</li>
+                </ul>
+                
+                <p><span class="clause-number">3. EXCEPTIONS:</span> This agreement does not apply to information that:</p>
+                <ul>
+                    <li>Is publicly available through no breach of this agreement</li>
+                    <li>Was known prior to disclosure</li>
+                    <li>Is independently developed without use of confidential information</li>
+                    <li>Is required to be disclosed by law</li>
+                </ul>
+                
+                <p><span class="clause-number">4. REMEDIES:</span> Breach of this agreement may cause irreparable harm. The disclosing party is entitled to seek injunctive relief and monetary damages.</p>
+                
+                <p><span class="clause-number">5. TERM:</span> This agreement remains in effect for the duration specified above from the effective date.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Receiving Party</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Service Agreement -->
+    <div class="agreement-card" id="service-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-handshake"></i>
+                Project Service Agreement
+            </h2>
+            <p class="agreement-subtitle">Service contract for client projects</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('service-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillServiceForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>PROJECT SERVICE AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Client Name:</label>
+                    <input type="text" class="form-input" id="service_client_name" placeholder="Client/Company Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Project Name:</label>
+                    <input type="text" class="form-input" id="service_project_name" placeholder="Project Title">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Project Value (₹):</label>
+                    <input type="text" class="form-input" id="service_project_value" placeholder="Total Contract Value">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Start Date:</label>
+                    <input type="date" class="form-input" id="service_start_date">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">End Date:</label>
+                    <input type="date" class="form-input" id="service_end_date">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Terms:</label>
+                    <select class="form-input" id="service_payment_terms">
+                        <option>30 days</option>
+                        <option>15 days</option>
+                        <option>45 days</option>
+                        <option>Upon milestone completion</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. SCOPE OF SERVICES:</span> Lumorange Technologies ("Service Provider") agrees to provide the services described in the project specifications for the above-named project to the Client.</p>
+                
+                <p><span class="clause-number">2. DELIVERABLES:</span> Service Provider will deliver the project components as specified in the attached project scope document, including source code, documentation, and testing reports.</p>
+                
+                <p><span class="clause-number">3. PAYMENT TERMS:</span> Client agrees to pay the total project value as specified above. Payment is due within the payment terms specified. Late payments may incur interest charges.</p>
+                
+                <p><span class="clause-number">4. TIMELINE:</span> Project will commence on the start date and is scheduled for completion by the end date. Extensions may be granted for scope changes or delays beyond Service Provider's control.</p>
+                
+                <p><span class="clause-number">5. INTELLECTUAL PROPERTY:</span> Upon full payment, Client will own the deliverables created specifically for this project. Service Provider retains rights to general methodologies and pre-existing intellectual property.</p>
+                
+                <p><span class="clause-number">6. WARRANTY:</span> Service Provider warrants that services will be performed in a professional manner. A 90-day warranty is provided for defects in deliverables.</p>
+                
+                <p><span class="clause-number">7. LIMITATION OF LIABILITY:</span> Service Provider's liability is limited to the total contract value. Service Provider is not liable for indirect, consequential, or incidental damages.</p>
+                
+                <p><span class="clause-number">8. CHANGE REQUESTS:</span> Any changes to project scope must be documented in writing and may result in additional charges and timeline adjustments.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Client Representative</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Independent Contractor Agreement -->
+    <div class="agreement-card" id="contractor-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-user-cog"></i>
+                Independent Contractor Agreement
+            </h2>
+            <p class="agreement-subtitle">Contract for freelance and consulting services</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('contractor-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillContractorForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>INDEPENDENT CONTRACTOR AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Contractor Name:</label>
+                    <input type="text" class="form-input" id="contractor_name" placeholder="Full Name/Company">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Service Type:</label>
+                    <input type="text" class="form-input" id="contractor_service" placeholder="Type of Service">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Rate (₹/hour or ₹/project):</label>
+                    <input type="text" class="form-input" id="contractor_rate" placeholder="Rate Structure">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contract Duration:</label>
+                    <input type="text" class="form-input" id="contractor_duration" placeholder="Duration/End Date">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. INDEPENDENT CONTRACTOR STATUS:</span> Contractor is an independent contractor and not an employee of Lumorange Technologies. Contractor is responsible for their own taxes, insurance, and benefits.</p>
+                
+                <p><span class="clause-number">2. SERVICES:</span> Contractor agrees to provide the services specified above in a professional and timely manner, meeting all agreed-upon specifications and deadlines.</p>
+                
+                <p><span class="clause-number">3. PAYMENT:</span> Payment will be made at the rate specified above, upon submission of invoices and completion of work to Company's satisfaction.</p>
+                
+                <p><span class="clause-number">4. WORK PRODUCT:</span> All work product created by Contractor for Company shall be considered "work for hire" and owned by Company upon payment.</p>
+                
+                <p><span class="clause-number">5. CONFIDENTIALITY:</span> Contractor agrees to maintain confidentiality of all Company information and shall not disclose confidential information to third parties.</p>
+                
+                <p><span class="clause-number">6. INDEMNIFICATION:</span> Contractor agrees to indemnify Company against any claims arising from Contractor's work or breach of this agreement.</p>
+                
+                <p><span class="clause-number">7. TERMINATION:</span> Either party may terminate this agreement with written notice as specified in the contract duration terms.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Contractor</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Software License Agreement -->
+    <div class="agreement-card" id="license-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-key"></i>
+                Software License Agreement
+            </h2>
+            <p class="agreement-subtitle">License terms for software usage</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('license-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillLicenseForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>SOFTWARE LICENSE AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Licensee Name:</label>
+                    <input type="text" class="form-input" id="license_licensee" placeholder="Company/Individual Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Software Product:</label>
+                    <input type="text" class="form-input" id="license_software" placeholder="Software Name/Version">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">License Type:</label>
+                    <select class="form-input" id="license_type">
+                        <option>Single User</option>
+                        <option>Multi-User (5 users)</option>
+                        <option>Enterprise</option>
+                        <option>Site License</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">License Fee (₹):</label>
+                    <input type="text" class="form-input" id="license_fee" placeholder="One-time or Annual Fee">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. GRANT OF LICENSE:</span> Lumorange Technologies grants Licensee a non-exclusive, non-transferable license to use the specified software according to the license type selected above.</p>
+                
+                <p><span class="clause-number">2. PERMITTED USE:</span> Licensee may use the software for internal business purposes only. The number of concurrent users shall not exceed the license limits specified above.</p>
+                
+                <p><span class="clause-number">3. RESTRICTIONS:</span> Licensee shall not:</p>
+                <ul>
+                    <li>Reverse engineer, decompile, or disassemble the software</li>
+                    <li>Distribute, rent, lease, or sublicense the software</li>
+                    <li>Remove or alter any proprietary notices</li>
+                    <li>Use the software for illegal or unauthorized purposes</li>
+                </ul>
+                
+                <p><span class="clause-number">4. SUPPORT AND UPDATES:</span> Lumorange Technologies will provide technical support and software updates for one year from the license date, renewable annually.</p>
+                
+                <p><span class="clause-number">5. WARRANTY DISCLAIMER:</span> Software is provided "as is" without warranties of any kind. Lumorange Technologies disclaims all warranties, express or implied.</p>
+                
+                <p><span class="clause-number">6. LIMITATION OF LIABILITY:</span> In no event shall Lumorange Technologies be liable for any indirect, consequential, or incidental damages arising from software use.</p>
+                
+                <p><span class="clause-number">7. TERMINATION:</span> This license terminates automatically upon breach of terms or non-payment of fees. Upon termination, Licensee must cease using and destroy all copies of the software.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Licensee</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memorandum of Understanding (MOU) -->
+    <div class="agreement-card" id="mou-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-handshake"></i>
+                Memorandum of Understanding (MOU)
+            </h2>
+            <p class="agreement-subtitle">Partnership and collaboration agreement</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('mou-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillMOUForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>MEMORANDUM OF UNDERSTANDING</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Partner Organization:</label>
+                    <input type="text" class="form-input" id="mou_partner" placeholder="Partner Company Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Partnership Type:</label>
+                    <select class="form-input" id="mou_type">
+                        <option>Strategic Partnership</option>
+                        <option>Technology Partnership</option>
+                        <option>Business Collaboration</option>
+                        <option>Joint Venture</option>
+                        <option>Research Partnership</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Effective Date:</label>
+                    <input type="date" class="form-input" id="mou_date">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Duration:</label>
+                    <input type="text" class="form-input" id="mou_duration" placeholder="e.g., 2 years">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. PURPOSE:</span> This Memorandum of Understanding establishes the framework for cooperation and collaboration between Lumorange Technologies and the Partner Organization for mutual business benefits.</p>
+                
+                <p><span class="clause-number">2. OBJECTIVES:</span> The parties agree to work together to:</p>
+                <ul>
+                    <li>Explore business opportunities and joint ventures</li>
+                    <li>Share technical expertise and resources</li>
+                    <li>Develop innovative solutions and services</li>
+                    <li>Expand market reach and customer base</li>
+                </ul>
+                
+                <p><span class="clause-number">3. SCOPE OF COLLABORATION:</span> The partnership may include but is not limited to: joint projects, resource sharing, knowledge exchange, marketing cooperation, and technology development.</p>
+                
+                <p><span class="clause-number">4. RESPONSIBILITIES:</span> Each party will designate representatives to oversee the collaboration and ensure effective communication and coordination of activities.</p>
+                
+                <p><span class="clause-number">5. CONFIDENTIALITY:</span> Both parties agree to maintain confidentiality of proprietary information shared during the course of collaboration.</p>
+                
+                <p><span class="clause-number">6. NON-BINDING NATURE:</span> This MOU is a statement of mutual intent and does not create legally binding obligations. Specific projects will be governed by separate agreements.</p>
+                
+                <p><span class="clause-number">7. TERMINATION:</span> Either party may terminate this MOU with 30 days written notice to the other party.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Partner Representative</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor Agreement -->
+    <div class="agreement-card" id="vendor-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-truck"></i>
+                Vendor Agreement
+            </h2>
+            <p class="agreement-subtitle">Supplier and vendor contract</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('vendor-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillVendorForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>VENDOR AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Vendor Name:</label>
+                    <input type="text" class="form-input" id="vendor_name" placeholder="Vendor Company Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Service/Product:</label>
+                    <input type="text" class="form-input" id="vendor_service" placeholder="Description of goods/services">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contract Value (₹):</label>
+                    <input type="text" class="form-input" id="vendor_value" placeholder="Total contract amount">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Terms:</label>
+                    <select class="form-input" id="vendor_payment">
+                        <option>Net 30 days</option>
+                        <option>Net 15 days</option>
+                        <option>Net 45 days</option>
+                        <option>Upon delivery</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. SERVICES/PRODUCTS:</span> Vendor agrees to provide the goods or services specified above in accordance with the specifications and standards agreed upon by both parties.</p>
+                
+                <p><span class="clause-number">2. QUALITY STANDARDS:</span> All deliverables must meet industry standards and specifications. Vendor warrants that all products/services will be free from defects and fit for intended purpose.</p>
+                
+                <p><span class="clause-number">3. DELIVERY:</span> Vendor shall deliver goods/services within the agreed timeframes. Time is of the essence for all deliveries.</p>
+                
+                <p><span class="clause-number">4. PAYMENT TERMS:</span> Payment will be made according to the terms specified above, upon receipt of satisfactory deliverables and proper invoicing.</p>
+                
+                <p><span class="clause-number">5. COMPLIANCE:</span> Vendor agrees to comply with all applicable laws, regulations, and industry standards in the provision of goods/services.</p>
+                
+                <p><span class="clause-number">6. LIABILITY:</span> Vendor shall indemnify Lumorange Technologies against any claims arising from vendor's breach of contract or negligence.</p>
+                
+                <p><span class="clause-number">7. TERMINATION:</span> Either party may terminate this agreement with cause immediately, or without cause with 30 days written notice.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Vendor Representative</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance & Support Agreement -->
+    <div class="agreement-card" id="maintenance-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-tools"></i>
+                Maintenance & Support Agreement
+            </h2>
+            <p class="agreement-subtitle">Ongoing support and maintenance services</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('maintenance-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillMaintenanceForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>MAINTENANCE & SUPPORT AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Client Name:</label>
+                    <input type="text" class="form-input" id="maintenance_client" placeholder="Client Company Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">System/Software:</label>
+                    <input type="text" class="form-input" id="maintenance_system" placeholder="System to be maintained">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Support Level:</label>
+                    <select class="form-input" id="maintenance_level">
+                        <option>Basic Support (Business Hours)</option>
+                        <option>Premium Support (Extended Hours)</option>
+                        <option>Enterprise Support (24/7)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Annual Fee (₹):</label>
+                    <input type="text" class="form-input" id="maintenance_fee" placeholder="Annual maintenance cost">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. SCOPE OF SERVICES:</span> Lumorange Technologies will provide ongoing maintenance, support, and technical assistance for the specified system/software.</p>
+                
+                <p><span class="clause-number">2. SUPPORT SERVICES:</span> Services include:</p>
+                <ul>
+                    <li>Bug fixes and error corrections</li>
+                    <li>Technical support and troubleshooting</li>
+                    <li>Regular system updates and patches</li>
+                    <li>Performance monitoring and optimization</li>
+                    <li>Documentation updates</li>
+                </ul>
+                
+                <p><span class="clause-number">3. RESPONSE TIMES:</span> Support requests will be acknowledged and responded to according to the support level selected above.</p>
+                
+                <p><span class="clause-number">4. EXCLUSIONS:</span> This agreement does not cover new feature development, major system upgrades, or issues caused by client modifications.</p>
+                
+                <p><span class="clause-number">5. CLIENT RESPONSIBILITIES:</span> Client agrees to provide necessary access, information, and cooperation required for maintenance activities.</p>
+                
+                <p><span class="clause-number">6. RENEWAL:</span> This agreement automatically renews annually unless terminated with 60 days written notice.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Client Representative</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Processing Agreement (GDPR Compliance) -->
+    <div class="agreement-card" id="dpa-agreement">
+        <div class="agreement-header">
+            <h2 class="agreement-title">
+                <i class="fas fa-shield-alt"></i>
+                Data Processing Agreement (DPA)
+            </h2>
+            <p class="agreement-subtitle">GDPR and data privacy compliance</p>
+            <div class="agreement-actions no-print">
+                <button class="btn btn-sm btn-outline-light" onclick="printAgreement('dpa-agreement')">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="fillDPAForm()">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="agreement-content">
+            <div class="company-header">
+                <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                <p>Professional IT Services & Solutions</p>
+                <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+            </div>
+
+            <h4 class="text-center mb-4"><strong>DATA PROCESSING AGREEMENT</strong></h4>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">Data Controller:</label>
+                    <input type="text" class="form-input" id="dpa_controller" placeholder="Client/Data Controller Name">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Data Categories:</label>
+                    <input type="text" class="form-input" id="dpa_categories" placeholder="Types of personal data">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Processing Purpose:</label>
+                    <input type="text" class="form-input" id="dpa_purpose" placeholder="Purpose of data processing">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Retention Period:</label>
+                    <input type="text" class="form-input" id="dpa_retention" placeholder="Data retention period">
+                </div>
+            </div>
+
+            <div class="legal-text">
+                <p><span class="clause-number">1. DEFINITIONS:</span> "Data Controller" means the entity that determines purposes and means of processing. "Data Processor" means Lumorange Technologies processing data on behalf of Controller.</p>
+                
+                <p><span class="clause-number">2. PROCESSING OBLIGATIONS:</span> Lumorange Technologies agrees to:</p>
+                <ul>
+                    <li>Process personal data only as instructed by Data Controller</li>
+                    <li>Implement appropriate technical and organizational security measures</li>
+                    <li>Ensure confidentiality of processing personnel</li>
+                    <li>Assist with data subject rights requests</li>
+                    <li>Notify of personal data breaches within 72 hours</li>
+                </ul>
+                
+                <p><span class="clause-number">3. SECURITY MEASURES:</span> Processor shall implement and maintain appropriate security measures including encryption, access controls, and regular security assessments.</p>
+                
+                <p><span class="clause-number">4. SUB-PROCESSING:</span> Any sub-processors must be approved by Controller and bound by equivalent data protection obligations.</p>
+                
+                <p><span class="clause-number">5. DATA TRANSFERS:</span> Personal data will not be transferred outside India without Controller's explicit consent and appropriate safeguards.</p>
+                
+                <p><span class="clause-number">6. AUDITS:</span> Controller has the right to audit Processor's compliance with this agreement and applicable data protection laws.</p>
+                
+                <p><span class="clause-number">7. DATA RETURN/DELETION:</span> Upon termination, Processor will return or securely delete all personal data as instructed by Controller.</p>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Data Controller</strong></p>
+                    <p>Date: _______________</p>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <p><strong>Lumorange Technologies</strong><br><small>(Data Processor)</small></p>
+                    <p>Date: _______________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Agreement Modal -->
+<div class="modal fade" id="customAgreementModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Custom Agreement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form class="custom-agreement-form">
+                    <div class="mb-3">
+                        <label class="form-label">Agreement Title</label>
+                        <input type="text" class="form-control" id="custom_title" placeholder="Enter agreement title">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Agreement Type</label>
+                        <select class="form-control" id="custom_type">
+                            <option>Service Agreement</option>
+                            <option>Partnership Agreement</option>
+                            <option>Vendor Agreement</option>
+                            <option>Maintenance Agreement</option>
+                            <option>Consulting Agreement</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Parties Involved</label>
+                        <textarea class="form-control" id="custom_parties" rows="2" placeholder="List the parties involved"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Agreement Terms</label>
+                        <textarea class="form-control" id="custom_terms" rows="8" placeholder="Enter the main terms and conditions of the agreement"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Effective Date</label>
+                            <input type="date" class="form-control" id="custom_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Duration</label>
+                            <input type="text" class="form-control" id="custom_duration" placeholder="e.g., 1 year, Until project completion">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="generateCustomAgreement()">Generate Agreement</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Print functions
+function printAgreement(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    
+    // Clone the agreement element to avoid modifying the original
+    const agreementClone = agreement.cloneNode(true);
+    
+    // Update all form inputs in the clone with their current values
+    const inputs = agreementClone.querySelectorAll('input, select, textarea');
+    const originalInputs = agreement.querySelectorAll('input, select, textarea');
+    
+    inputs.forEach((input, index) => {
+        const originalInput = originalInputs[index];
+        if (originalInput) {
+            // For input fields, set the value attribute to the current value
+            if (input.type === 'text' || input.type === 'number' || input.type === 'date') {
+                input.setAttribute('value', originalInput.value || '');
+                // Also update the visible content for print
+                if (originalInput.value) {
+                    input.style.borderBottom = '1px solid #000';
+                    input.style.background = 'transparent';
+                }
+            }
+            // For select elements, mark the selected option
+            else if (input.tagName === 'SELECT') {
+                const selectedValue = originalInput.value;
+                const options = input.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === selectedValue) {
+                        option.selected = true;
+                    }
+                });
+                // Replace select with its current text value for printing
+                const selectedText = originalInput.options[originalInput.selectedIndex]?.text || '';
+                const span = document.createElement('span');
+                span.textContent = selectedText;
+                span.className = 'form-input';
+                span.style.borderBottom = '1px solid #000';
+                span.style.display = 'block';
+                span.style.padding = '0.25rem 0';
+                input.parentNode.replaceChild(span, input);
+            }
+            // For textarea elements
+            else if (input.tagName === 'TEXTAREA') {
+                input.textContent = originalInput.value || '';
+            }
+        }
+    });
+    
+    const printContent = agreementClone.outerHTML;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Print Agreement - Lumorange Technologies</title>
+            <style>
+                body { 
+                    font-family: 'Times New Roman', serif; 
+                    margin: 1.5cm; 
+                    line-height: 1.6; 
+                    font-size: 12pt;
+                    color: #000;
+                }
+                .agreement-card { 
+                    break-after: page; 
+                    border: none;
+                    margin-bottom: 0;
+                }
+                .agreement-header { 
+                    background: transparent !important; 
+                    color: #000 !important; 
+                    border-bottom: 2px solid #000; 
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                }
+                .agreement-title {
+                    font-size: 18pt;
+                    font-weight: bold;
+                    text-align: center;
+                    margin: 0;
+                }
+                .agreement-subtitle {
+                    text-align: center;
+                    font-style: italic;
+                    margin-top: 0.5rem;
+                }
+                .agreement-actions { display: none !important; }
+                .company-header {
+                    text-align: center;
+                    border-bottom: 1px solid #000;
+                    padding-bottom: 1rem;
+                    margin-bottom: 1.5rem;
+                }
+                .company-logo { display: none !important; }
+                .form-input { 
+                    border: none; 
+                    border-bottom: 1px solid #000; 
+                    padding: 0.25rem 0; 
+                    background: transparent;
+                    font-size: 11pt;
+                    min-height: 1.5rem;
+                    width: 100%;
+                }
+                .form-section {
+                    background: transparent !important;
+                    border: 1px solid #000;
+                    padding: 1rem;
+                    margin: 1rem 0;
+                }
+                .form-row {
+                    display: grid;
+                    grid-template-columns: 1fr 2fr;
+                    gap: 1rem;
+                    margin-bottom: 0.8rem;
+                    align-items: center;
+                }
+                .signature-line { 
+                    border-bottom: 1px solid #000; 
+                    height: 40px; 
+                    margin-bottom: 0.5rem; 
+                }
+                .signature-section {
+                    margin-top: 2rem;
+                    border-top: 1px solid #000;
+                    padding-top: 1rem;
+                }
+                .legal-text {
+                    text-align: justify;
+                    margin: 1rem 0;
+                }
+                .clause-number {
+                    font-weight: bold;
+                }
+                ul {
+                    margin: 0.5rem 0 1rem 2rem;
+                }
+                h3, h4 { 
+                    color: #000 !important; 
+                    text-align: center;
+                }
+                @media print { 
+                    .agreement-card { break-after: page; }
+                    body { margin: 0; }
+                }
+            </style>
+        </head>
+        <body>${printContent}</body>
+        </html>
+    `);
+    printWindow.document.close();
+    
+    // Show success message
+    setTimeout(() => {
+        alert('Agreement prepared for printing. Please check the preview before printing.');
+    }, 500);
+    
+    printWindow.print();
+}
+
+function printAll() {
+    // Apply form data to all agreements before printing
+    const agreements = document.querySelectorAll('.agreement-card');
+    agreements.forEach(agreement => {
+        updateFormDataForPrint(agreement);
+    });
+    window.print();
+}
+
+// Helper function to update form data for display/print
+function updateFormDataForPrint(agreementElement) {
+    const inputs = agreementElement.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.value && input.value.trim() !== '') {
+            // Add a visual indicator that the field is filled
+            input.style.backgroundColor = '#f8f9fa';
+            input.style.borderBottom = '2px solid #28a745';
+        }
+    });
+}
+
+// Validation function to check if important fields are filled
+function validateAgreementData(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    const requiredInputs = agreement.querySelectorAll('input[required], input[id*="name"], input[id*="client"], input[id*="party"]');
+    
+    let hasData = false;
+    requiredInputs.forEach(input => {
+        if (input.value && input.value.trim() !== '') {
+            hasData = true;
+        }
+    });
+    
+    return hasData;
+}
+
+// Form filling functions with validation feedback
+function fillEmploymentForm() {
+    document.getElementById('emp_name').focus();
+    addFormListeners('employment-agreement');
+}
+
+function fillNDAForm() {
+    document.getElementById('nda_party_name').focus();
+    addFormListeners('nda-agreement');
+}
+
+function fillServiceForm() {
+    document.getElementById('service_client_name').focus();
+    addFormListeners('service-agreement');
+}
+
+function fillContractorForm() {
+    document.getElementById('contractor_name').focus();
+    addFormListeners('contractor-agreement');
+}
+
+function fillLicenseForm() {
+    document.getElementById('license_licensee').focus();
+    addFormListeners('license-agreement');
+}
+
+function fillMOUForm() {
+    document.getElementById('mou_partner').focus();
+    addFormListeners('mou-agreement');
+}
+
+function fillVendorForm() {
+    document.getElementById('vendor_name').focus();
+    addFormListeners('vendor-agreement');
+}
+
+function fillMaintenanceForm() {
+    document.getElementById('maintenance_client').focus();
+    addFormListeners('maintenance-agreement');
+}
+
+function fillDPAForm() {
+    document.getElementById('dpa_controller').focus();
+    addFormListeners('dpa-agreement');
+}
+
+// Add form listeners to provide visual feedback
+function addFormListeners(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    const inputs = agreement.querySelectorAll('input, select, textarea');
+    
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            // Visual feedback for filled fields
+            if (this.value.trim() !== '') {
+                this.style.backgroundColor = '#e8f5e8';
+                this.style.borderColor = '#28a745';
+            } else {
+                this.style.backgroundColor = '';
+                this.style.borderColor = '';
+            }
+        });
+        
+        input.addEventListener('change', function() {
+            updatePrintPreview(agreementId);
+        });
+    });
+}
+
+// Function to show a preview of how the document will print
+function updatePrintPreview(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    const printButton = agreement.querySelector('[onclick*="printAgreement"]');
+    
+    // Count filled fields
+    const inputs = agreement.querySelectorAll('input, select, textarea');
+    let filledCount = 0;
+    let totalCount = 0;
+    
+    inputs.forEach(input => {
+        totalCount++;
+        if (input.value && input.value.trim() !== '') {
+            filledCount++;
+        }
+    });
+    
+    // Update print button with status
+    if (filledCount > 0) {
+        printButton.innerHTML = `<i class="fas fa-print"></i> Print (${filledCount}/${totalCount} filled)`;
+        printButton.classList.remove('btn-outline-light');
+        printButton.classList.add('btn-success');
+    } else {
+        printButton.innerHTML = '<i class="fas fa-print"></i>';
+        printButton.classList.remove('btn-success');
+        printButton.classList.add('btn-outline-light');
+    }
+}
+
+// Custom agreement modal
+function openCustomAgreementModal() {
+    const modal = new bootstrap.Modal(document.getElementById('customAgreementModal'));
+    modal.show();
+}
+
+function generateCustomAgreement() {
+    const title = document.getElementById('custom_title').value;
+    const type = document.getElementById('custom_type').value;
+    const parties = document.getElementById('custom_parties').value;
+    const terms = document.getElementById('custom_terms').value;
+    const date = document.getElementById('custom_date').value;
+    const duration = document.getElementById('custom_duration').value;
+
+    if (!title || !parties || !terms) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    // Create custom agreement HTML
+    const customAgreementHTML = `
+        <div class="agreement-card" id="custom-agreement-${Date.now()}">
+            <div class="agreement-header">
+                <h2 class="agreement-title">
+                    <i class="fas fa-file-contract"></i>
+                    ${title}
+                </h2>
+                <p class="agreement-subtitle">Custom ${type}</p>
+                <div class="agreement-actions no-print">
+                    <button class="btn btn-sm btn-outline-light" onclick="printAgreement('custom-agreement-${Date.now()}')">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="agreement-content">
+                <div class="company-header">
+                    <h3><strong>LUMORANGE TECHNOLOGIES</strong></h3>
+                    <p>Professional IT Services & Solutions</p>
+                    <p><small>Address: Hyderabad, Telangana | Email: lumorange.bharat@gmail.com | Phone: 8688678176</small></p>
+                </div>
+                <h4 class="text-center mb-4"><strong>${title.toUpperCase()}</strong></h4>
+                <div class="form-section">
+                    <div class="form-row">
+                        <label class="form-label">Parties:</label>
+                        <div class="form-input">${parties}</div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Effective Date:</label>
+                        <div class="form-input">${date}</div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Duration:</label>
+                        <div class="form-input">${duration}</div>
+                    </div>
+                </div>
+                <div class="legal-text">
+                    ${terms.split('\n').map((term, index) => 
+                        `<p><span class="clause-number">${index + 1}.</span> ${term}</p>`
+                    ).join('')}
+                </div>
+                <div class="signature-section">
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <p><strong>Party 1</strong></p>
+                        <p>Date: _______________</p>
+                    </div>
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <p><strong>Lumorange Technologies</strong></p>
+                        <p>Date: _______________</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add to agreements container
+    document.querySelector('.agreements-container').insertAdjacentHTML('beforeend', customAgreementHTML);
+    
+    // Close modal and reset form
+    bootstrap.Modal.getInstance(document.getElementById('customAgreementModal')).hide();
+    document.querySelector('.custom-agreement-form').reset();
+    
+    // Scroll to new agreement
+    document.querySelector(`#custom-agreement-${Date.now()}`).scrollIntoView({ behavior: 'smooth' });
+}
+
+// Auto-fill current date for date fields and add test data functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        if (input.id.includes('start') || input.id === 'nda_date' || input.id === 'custom_date' || input.id === 'mou_date') {
+            input.value = today;
+        }
+    });
+    
+    // Add test data button
+    const header = document.querySelector('.page-actions');
+    if (header) {
+        const testButton = document.createElement('button');
+        testButton.className = 'btn btn-outline-warning me-2';
+        testButton.innerHTML = '<i class="fas fa-vial"></i> Fill Test Data';
+        testButton.onclick = fillAllTestData;
+        header.insertBefore(testButton, header.firstChild);
+    }
+});
+
+// Function to fill test data for demonstration
+function fillAllTestData() {
+    // Employment Agreement Test Data
+    if (document.getElementById('emp_name')) {
+        document.getElementById('emp_name').value = 'Rajesh Kumar';
+        document.getElementById('emp_position').value = 'Senior Software Developer';
+        document.getElementById('emp_department').value = 'Technology';
+        document.getElementById('emp_salary').value = '75000';
+        addFormListeners('employment-agreement');
+        updatePrintPreview('employment-agreement');
+    }
+    
+    // NDA Test Data
+    if (document.getElementById('nda_party_name')) {
+        document.getElementById('nda_party_name').value = 'TechCorp Solutions Pvt Ltd';
+        document.getElementById('nda_party_type').value = 'Client';
+        document.getElementById('nda_duration').value = '3';
+        addFormListeners('nda-agreement');
+        updatePrintPreview('nda-agreement');
+    }
+    
+    // Service Agreement Test Data
+    if (document.getElementById('service_client_name')) {
+        document.getElementById('service_client_name').value = 'Digital Innovations Ltd';
+        document.getElementById('service_project_name').value = 'E-commerce Platform Development';
+        document.getElementById('service_project_value').value = '500000';
+        document.getElementById('service_payment_terms').value = '30 days';
+        addFormListeners('service-agreement');
+        updatePrintPreview('service-agreement');
+    }
+    
+    // MOU Test Data
+    if (document.getElementById('mou_partner')) {
+        document.getElementById('mou_partner').value = 'Innovation Tech Partners';
+        document.getElementById('mou_type').value = 'Strategic Partnership';
+        document.getElementById('mou_duration').value = '2 years';
+        addFormListeners('mou-agreement');
+        updatePrintPreview('mou-agreement');
+    }
+    
+    // Vendor Agreement Test Data
+    if (document.getElementById('vendor_name')) {
+        document.getElementById('vendor_name').value = 'CloudHost Services';
+        document.getElementById('vendor_service').value = 'Cloud Infrastructure Services';
+        document.getElementById('vendor_value').value = '120000';
+        document.getElementById('vendor_payment').value = 'Net 30 days';
+        addFormListeners('vendor-agreement');
+        updatePrintPreview('vendor-agreement');
+    }
+    
+    alert('Test data filled successfully! Now try printing individual agreements to see the updated data.');
+}
+</script>
+{% endblock %}

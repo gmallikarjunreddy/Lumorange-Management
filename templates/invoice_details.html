@@ -1,0 +1,162 @@
+{% extends "base_new.html" %}
+{% block title %}Invoice #{{ invoice.invoice_number }} - Lumorange Management{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .invoice-print-area, .invoice-print-area * {
+            visibility: visible;
+        }
+        .invoice-print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .no-print {
+            display: none;
+        }
+    }
+    .invoice-box {
+        max-width: 800px;
+        margin: auto;
+        padding: 30px;
+        border: 1px solid #eee;
+        box-shadow: 0 0 10px rgba(0, 0, 0, .15);
+        font-size: 16px;
+        line-height: 24px;
+        font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
+        color: #555;
+    }
+    .invoice-box table {
+        width: 100%;
+        line-height: inherit;
+        text-align: left;
+    }
+    .invoice-box table td {
+        padding: 5px;
+        vertical-align: top;
+    }
+    .invoice-box table tr td:nth-child(2) {
+        text-align: right;
+    }
+    .invoice-box table tr.top table td {
+        padding-bottom: 20px;
+    }
+    .invoice-box table tr.top table td.title {
+        font-size: 45px;
+        line-height: 45px;
+        color: #333;
+    }
+    .invoice-box table tr.information table td {
+        padding-bottom: 40px;
+    }
+    .invoice-box table tr.heading td {
+        background: #eee;
+        border-bottom: 1px solid #ddd;
+        font-weight: bold;
+    }
+    .invoice-box table tr.details td {
+        padding-bottom: 20px;
+    }
+    .invoice-box table tr.item td{
+        border-bottom: 1px solid #eee;
+    }
+    .invoice-box table tr.item.last td {
+        border-bottom: none;
+    }
+    .invoice-box table tr.total td:nth-child(2) {
+        border-top: 2px solid #eee;
+        font-weight: bold;
+    }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center no-print">
+    <div>
+        <h1 class="page-title">Invoice #{{ invoice.invoice_number }}</h1>
+        <p class="page-subtitle">Details for invoice to {{ invoice.client_name }}.</p>
+    </div>
+    <button onclick="window.print();" class="btn btn-primary">
+        <i class="fas fa-print me-2"></i>Print Invoice
+    </button>
+</div>
+
+<div class="invoice-print-area">
+    <div class="invoice-box">
+        <table cellpadding="0" cellspacing="0">
+            <tr class="top">
+                <td colspan="2">
+                    <table>
+                        <tr>
+                            <td class="title">
+                                Lumorange
+                            </td>
+                            <td>
+                                Invoice #: {{ invoice.invoice_number }}<br>
+                                Created: {{ invoice.invoice_date.strftime('%B %d, %Y') }}<br>
+                                Due: {{ invoice.due_date.strftime('%B %d, %Y') }}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="information">
+                <td colspan="2">
+                    <table>
+                        <tr>
+                            <td>
+                                Lumorange Inc.<br>
+                                12345 Sunny Road<br>
+                                Sunnyville, CA 12345
+                            </td>
+                            <td>
+                                {{ invoice.client_name }}<br>
+                                {{ invoice.client_email }}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="heading">
+                <td>
+                    Item
+                </td>
+                <td>
+                    Price
+                </td>
+            </tr>
+            {% for item in items %}
+            <tr class="item">
+                <td>
+                    {{ item.description }}
+                </td>
+                <td>
+                    {{ format_currency(item.total) }}
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="total">
+                <td></td>
+                <td>
+                   Subtotal: {{ format_currency(invoice.subtotal) }}
+                </td>
+            </tr>
+            <tr class="total">
+                <td></td>
+                <td>
+                   Tax: {{ format_currency(invoice.tax) }}
+                </td>
+            </tr>
+            <tr class="total">
+                <td></td>
+                <td>
+                   Total: {{ format_currency(invoice.total) }}
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+{% endblock %}

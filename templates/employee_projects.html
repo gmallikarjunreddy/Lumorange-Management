@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Projects - Lumorange Management{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="page-title">
+                <i class="fas fa-users-cog me-3"></i>Employee Project Assignments
+            </h1>
+            <p class="page-subtitle">Manage employee project assignments and roles</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignProjectModal">
+                <i class="fas fa-plus"></i> Assign Employee
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card">
+            <div class="stats-icon primary">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <h4 class="mb-1">{{ employee_projects|length }}</h4>
+            <p class="text-muted mb-0">Total Assignments</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card">
+            <div class="stats-icon success">
+                <i class="fas fa-users"></i>
+            </div>
+            <h4 class="mb-1">
+                {% set unique_employees = employee_projects | map(attribute=1) | unique | list | length %}
+                {{ unique_employees }}
+            </h4>
+            <p class="text-muted mb-0">Assigned Employees</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card">
+            <div class="stats-icon warning">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <h4 class="mb-1">
+                {% set unique_projects = employee_projects | map(attribute=2) | unique | list | length %}
+                {{ unique_projects }}
+            </h4>
+            <p class="text-muted mb-0">Active Projects</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card">
+            <div class="stats-icon info">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h4 class="mb-1">
+                {{ "%.1f"|format(employee_projects|length / unique_employees if unique_employees > 0 else 0) }}
+            </h4>
+            <p class="text-muted mb-0">Avg Projects per Employee</p>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment List -->
+<div class="card">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5><i class="fas fa-list me-2"></i>Project Assignments</h5>
+            </div>
+            <div class="col-auto">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search assignments..." id="searchInput">
+                    <button class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Project</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Assignment Date</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ep in employee_projects %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-success text-white me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 50%;">
+                                    {{ ep[4]|first|upper if ep[4] else 'E' }}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">{{ ep[4] or 'Unknown Employee' }}</h6>
+                                    <small class="text-muted">ID: {{ ep[1] }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <span class="fw-bold">{{ ep[5] or 'Unknown Project' }}</span>
+                                <small class="text-muted d-block">ID: {{ ep[2] }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ ep[3] }}</span>
+                        </td>
+                        <td>
+                            <span class="text-muted">{{ ep[6] or 'N/A' }}</span>
+                        </td>
+                        <td>
+                            <span class="text-muted">{{ ep[7].strftime('%m/%d/%Y') if ep[7] else 'Not specified' }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" title="Edit Assignment">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <a href="/delete_employee_project/{{ ep[0] }}" 
+                                   class="btn btn-outline-danger" 
+                                   title="Remove Assignment"
+                                   onclick="return confirm('Are you sure you want to remove this assignment?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Project Modal -->
+<div class="modal fade" id="assignProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Assign Employee to Project
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/assign_employee_project">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="employee_id" class="form-label">Employee</label>
+                        <select name="employee_id" id="employee_id" class="form-select" required>
+                            <option value="">Select Employee</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp[0] }}">{{ emp[1] }} {{ emp[2] }} ({{ emp[4] }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="project_id" class="form-label">Project</label>
+                        <select name="project_id" id="project_id" class="form-select" required>
+                            <option value="">Select Project</option>
+                            {% for proj in projects %}
+                            <option value="{{ proj[0] }}">{{ proj[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <input type="text" name="role" id="role" class="form-control" placeholder="Enter role (e.g., Developer, Manager, Designer)" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assigned_date" class="form-label">Assignment Date</label>
+                        <input type="date" name="assigned_date" id="assigned_date" class="form-control" value="{{ today }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Assign Employee
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Search functionality
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase();
+    const tableRows = document.querySelectorAll('tbody tr');
+    
+    tableRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1022 @@
+{% extends "base_new.html" %}
+
+{% block title %}Employees - Lumorange Management{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Employees</h1>
+        <p class="page-subtitle">Manage your workforce and employee data with advanced tools.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="showEmployeeAnalytics()">
+            <i class="fas fa-chart-pie me-2"></i>Analytics
+        </button>
+        <button class="btn btn-outline-success" onclick="exportEmployeesReport()">
+            <i class="fas fa-file-export me-2"></i>Export
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+            <i class="fas fa-plus me-2"></i>Add Employee
+        </button>
+    </div>
+</div>
+
+<!-- Employee Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary-subtle">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                <h4 class="text-primary">{{ total_employees }}</h4>
+                <p class="text-muted small mb-0">Total Employees</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success-subtle">
+            <div class="card-body text-center">
+                <i class="fas fa-user-check fa-2x text-success mb-2"></i>
+                <h4 class="text-success">{{ active_employees }}</h4>
+                <p class="text-muted small mb-0">Active Employees</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info-subtle">
+            <div class="card-body text-center">
+                <i class="fas fa-building fa-2x text-info mb-2"></i>
+                <h4 class="text-info">{{ total_departments }}</h4>
+                <p class="text-muted small mb-0">Departments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning-subtle">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-alt fa-2x text-warning mb-2"></i>
+                <h4 class="text-warning">{{ new_hires_month }}</h4>
+                <p class="text-muted small mb-0">New This Month</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Search Employees</label>
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by name, email, or ID...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Department</label>
+                <select id="departmentFilter" class="form-select">
+                    <option value="all">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.department_id }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select id="statusFilter" class="form-select">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Sort By</label>
+                <select id="sortSelect" class="form-select">
+                    <option value="name">Name</option>
+                    <option value="department">Department</option>
+                    <option value="position">Position</option>
+                    <option value="hire_date">Hire Date</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Order</label>
+                <select id="orderSelect" class="form-select">
+                    <option value="asc">↑</option>
+                    <option value="desc">↓</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                    <i class="fas fa-refresh"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Employee Directory</h6>
+        <div class="d-flex gap-2">
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="viewMode" id="tableView" autocomplete="off" checked>
+                <label class="btn btn-outline-primary btn-sm" for="tableView"><i class="fas fa-table"></i></label>
+                
+                <input type="radio" class="btn-check" name="viewMode" id="cardView" autocomplete="off">
+                <label class="btn btn-outline-primary btn-sm" for="cardView"><i class="fas fa-th-large"></i></label>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" onclick="exportToPDF()">
+                <i class="fas fa-file-pdf"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Table View -->
+        <div id="tableViewContent">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="employeesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>Employee ID</th>
+                            <th>Employee</th>
+                            <th>Contact</th>
+                            <th>Department</th>
+                            <th>Position</th>
+                            <th>Hire Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                        {% set hire_date = employee.hire_date if employee.hire_date else 'N/A' %}
+                        {% set status_class = 'success' if employee.status == 'active' else 'secondary' %}
+                        {% set status_text = employee.status.title() if employee.status else 'Active' %}
+                        <tr data-emp-name="{{ employee.name.lower() }}" 
+                            data-emp-dept="{{ employee.department_name or '' }}" 
+                            data-emp-position="{{ employee.position or '' }}"
+                            data-emp-status="{{ employee.status or 'active' }}"
+                            data-emp-hire-date="{{ employee.hire_date or '' }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input emp-checkbox" value="{{ employee.employee_id }}">
+                            </td>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary">{{ employee.employee_id }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-3">
+                                        <div class="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                            {{ employee.name[0] if employee.name else 'N' }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong>{{ employee.name }}</strong>
+                                        <div class="text-muted small">Emp ID: {{ employee.employee_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="text-sm">{{ employee.email or 'No email' }}</div>
+                                    <div class="text-muted small">{{ employee.phone or 'No phone' }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if employee.department_name %}
+                                <span class="badge bg-info-subtle text-info">{{ employee.department_name }}</span>
+                                {% else %}
+                                <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ employee.position or 'Not specified' }}</td>
+                            <td>
+                                <div>
+                                    {{ hire_date }}
+                                    {% if employee.hire_date and employee.days_since_hire %}
+                                    <div class="text-muted small">{{ employee.days_since_hire }} days</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ status_class }}-subtle text-{{ status_class }}">
+                                    {{ status_text }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-info view-employee-btn" 
+                                            data-emp-id="{{ employee.employee_id }}"
+                                            data-first-name="{{ employee.first_name }}"
+                                            data-last-name="{{ employee.last_name }}"
+                                            data-name="{{ employee.name }}"
+                                            data-email="{{ employee.email }}"
+                                            data-phone="{{ employee.phone or '' }}"
+                                            data-dept-id="{{ employee.department_id }}"
+                                            data-dept-name="{{ employee.department_name }}"
+                                            data-position="{{ employee.position }}"
+                                            data-birth-date="{{ employee.birth_date or '' }}"
+                                            data-hire-date="{{ employee.hire_date }}"
+                                            data-days-since-hire="{{ employee.days_since_hire }}"
+                                            data-status="{{ employee.status }}"
+                                            data-address="{{ employee.address or '' }}"
+                                            data-emergency-contact="{{ employee.emergency_contact or '' }}"
+                                            data-emergency-phone="{{ employee.emergency_phone or '' }}"
+                                            title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary edit-employee-btn" 
+                                            data-emp-id="{{ employee.employee_id }}"
+                                            data-first-name="{{ employee.first_name }}"
+                                            data-last-name="{{ employee.last_name }}"
+                                            data-email="{{ employee.email }}"
+                                            data-phone="{{ employee.phone or '' }}"
+                                            data-dept-id="{{ employee.department_id }}"
+                                            data-position="{{ employee.position }}"
+                                            data-birth-date="{{ employee.birth_date or '' }}"
+                                            data-status="{{ employee.status }}"
+                                            data-address="{{ employee.address or '' }}"
+                                            data-emergency-contact="{{ employee.emergency_contact or '' }}"
+                                            data-emergency-phone="{{ employee.emergency_phone or '' }}"
+                                            title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning salary-btn" 
+                                            data-emp-id="{{ employee.employee_id }}" title="Salary">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-employee-btn" 
+                                            data-emp-id="{{ employee.employee_id }}" 
+                                            data-emp-name="{{ employee.name }}" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Card View (Initially Hidden) -->
+        <div id="cardViewContent" style="display: none;">
+            <div class="row" id="employeeCards">
+                {% for employee in employees %}
+                <div class="col-md-6 col-lg-4 mb-3 employee-card" 
+                     data-emp-name="{{ employee.name.lower() }}" 
+                     data-emp-dept="{{ employee.department_name or '' }}"
+                     data-emp-status="{{ employee.status or 'active' }}">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar-lg me-3">
+                                    <div class="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                        {{ employee.name[0] if employee.name else 'N' }}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ employee.name }}</h6>
+                                    <p class="text-muted small mb-0">{{ employee.employee_id }}</p>
+                                </div>
+                                <span class="badge bg-{{ 'success' if employee.status == 'active' else 'secondary' }}-subtle text-{{ 'success' if employee.status == 'active' else 'secondary' }}">
+                                    {{ employee.status.title() if employee.status else 'Active' }}
+                                </span>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">Department:</small><br>
+                                <span class="badge bg-info-subtle text-info">{{ employee.department_name or 'Unassigned' }}</span>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">Position:</small><br>
+                                {{ employee.position or 'Not specified' }}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Contact:</small><br>
+                                <div class="text-sm">{{ employee.email or 'No email' }}</div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-sm btn-outline-primary edit-employee-btn" 
+                                        data-emp-id="{{ employee.employee_id }}"
+                                        data-first-name="{{ employee.first_name }}"
+                                        data-last-name="{{ employee.last_name }}"
+                                        data-email="{{ employee.email }}"
+                                        data-phone="{{ employee.phone or '' }}"
+                                        data-dept-id="{{ employee.department_id }}"
+                                        data-position="{{ employee.position }}"
+                                        data-birth-date="{{ employee.birth_date or '' }}"
+                                        data-status="{{ employee.status }}"
+                                        data-address="{{ employee.address or '' }}"
+                                        data-emergency-contact="{{ employee.emergency_contact or '' }}"
+                                        data-emergency-phone="{{ employee.emergency_phone or '' }}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-info view-employee-btn" 
+                                        data-emp-id="{{ employee.employee_id }}"
+                                        data-first-name="{{ employee.first_name }}"
+                                        data-last-name="{{ employee.last_name }}"
+                                        data-name="{{ employee.name }}"
+                                        data-email="{{ employee.email }}"
+                                        data-phone="{{ employee.phone or '' }}"
+                                        data-dept-id="{{ employee.department_id }}"
+                                        data-dept-name="{{ employee.department_name }}"
+                                        data-position="{{ employee.position }}"
+                                        data-birth-date="{{ employee.birth_date or '' }}"
+                                        data-hire-date="{{ employee.hire_date }}"
+                                        data-days-since-hire="{{ employee.days_since_hire }}"
+                                        data-status="{{ employee.status }}"
+                                        data-address="{{ employee.address or '' }}"
+                                        data-emergency-contact="{{ employee.emergency_contact or '' }}"
+                                        data-emergency-phone="{{ employee.emergency_phone or '' }}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Bulk Actions -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div id="bulkActions" style="display: none;">
+                <span class="text-muted me-3">
+                    <span id="selectedCount">0</span> employees selected
+                </span>
+                <button class="btn btn-sm btn-outline-primary me-2" onclick="bulkDepartmentUpdate()">
+                    <i class="fas fa-building"></i> Change Department
+                </button>
+                <button class="btn btn-sm btn-outline-warning me-2" onclick="bulkStatusUpdate()">
+                    <i class="fas fa-toggle-on"></i> Update Status
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+            </div>
+            <div class="text-muted">
+                Showing <span id="visibleCount">{{ employees|length }}</span> of {{ employees|length }} employees
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div class="modal fade" id="addEmployeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Employee</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/employees" method="post">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" name="first_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" name="last_name" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                <select name="department_id" class="form-select" required>
+                                    <option value="">Select Department</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.department_id }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Position <span class="text-danger">*</span></label>
+                                <input type="text" name="position" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Birth Date</label>
+                                <input type="date" name="birth_date" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact Name</label>
+                                <input type="text" name="emergency_contact" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact Phone</label>
+                                <input type="tel" name="emergency_phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Add Employee
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Employee Modal -->
+<div class="modal fade" id="editEmployeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Employee</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/employees/update" method="post">
+                    <input type="hidden" name="employee_id" id="edit_employee_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" name="first_name" id="edit_first_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" name="last_name" id="edit_last_name" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" id="edit_email" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="phone" id="edit_phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                <select name="department_id" id="edit_department_id" class="form-select" required>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.department_id }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Position <span class="text-danger">*</span></label>
+                                <input type="text" name="position" id="edit_position" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Birth Date</label>
+                                <input type="date" name="birth_date" id="edit_birth_date" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" id="edit_status" class="form-select">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" id="edit_address" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact Name</label>
+                                <input type="text" name="emergency_contact" id="edit_emergency_contact" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact Phone</label>
+                                <input type="tel" name="emergency_phone" id="edit_emergency_phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Employee
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Employee Modal -->
+<div class="modal fade" id="viewEmployeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="employeeDetailsContent">
+                <!-- Employee details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editFromView()">Edit Employee</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-sm {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.avatar-lg {
+    width: 4rem;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.avatar-xl {
+    width: 6rem;
+    height: 6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 2rem;
+}
+
+.btn-group .btn {
+    margin: 0;
+}
+
+.employee-card {
+    transition: transform 0.2s;
+}
+
+.employee-card:hover {
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+let currentViewEmployee = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // View mode toggle
+    document.getElementById('tableView').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('tableViewContent').style.display = 'block';
+            document.getElementById('cardViewContent').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('cardView').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('tableViewContent').style.display = 'none';
+            document.getElementById('cardViewContent').style.display = 'block';
+        }
+    });
+    
+    // Edit employee buttons
+    document.querySelectorAll('.edit-employee-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Edit button clicked');
+            try {
+                // Build employee object from individual data attributes
+                const employee = {
+                    employee_id: this.dataset.empId,
+                    first_name: this.dataset.firstName,
+                    last_name: this.dataset.lastName,
+                    email: this.dataset.email,
+                    phone: this.dataset.phone,
+                    department_id: this.dataset.deptId,
+                    position: this.dataset.position,
+                    birth_date: this.dataset.birthDate,
+                    status: this.dataset.status,
+                    address: this.dataset.address,
+                    emergency_contact: this.dataset.emergencyContact,
+                    emergency_phone: this.dataset.emergencyPhone
+                };
+                
+                console.log('Built employee data:', employee);
+                editEmployee(employee);
+            } catch (error) {
+                console.error('Error in edit button click handler:', error);
+                alert('Error loading employee data: ' + error.message);
+            }
+        });
+    });
+    
+    // View employee buttons
+    document.querySelectorAll('.view-employee-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            try {
+                // Build employee object from individual data attributes
+                const employee = {
+                    employee_id: this.dataset.empId,
+                    first_name: this.dataset.firstName,
+                    last_name: this.dataset.lastName,
+                    name: this.dataset.name,
+                    email: this.dataset.email,
+                    phone: this.dataset.phone,
+                    department_id: this.dataset.deptId,
+                    department_name: this.dataset.deptName,
+                    position: this.dataset.position,
+                    birth_date: this.dataset.birthDate,
+                    hire_date: this.dataset.hireDate,
+                    days_since_hire: this.dataset.daysSinceHire,
+                    status: this.dataset.status,
+                    address: this.dataset.address,
+                    emergency_contact: this.dataset.emergencyContact,
+                    emergency_phone: this.dataset.emergencyPhone
+                };
+                
+                console.log('Built employee data for view:', employee);
+                viewEmployee(employee);
+            } catch (error) {
+                console.error('Error in view button click handler:', error);
+                alert('Error loading employee data: ' + error.message);
+            }
+        });
+    });
+    
+    // Delete employee buttons
+    document.querySelectorAll('.delete-employee-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const empId = this.dataset.empId;
+            const empName = this.dataset.empName;
+            deleteEmployee(empId, empName);
+        });
+    });
+    
+    // Salary buttons
+    document.querySelectorAll('.salary-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const empId = this.dataset.empId;
+            manageSalary(empId);
+        });
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterEmployees);
+    }
+    
+    // Filter functionality
+    const filters = ['departmentFilter', 'statusFilter', 'sortSelect', 'orderSelect'];
+    filters.forEach(filterId => {
+        const element = document.getElementById(filterId);
+        if (element) {
+            element.addEventListener('change', filterEmployees);
+        }
+    });
+    
+    // Bulk selection
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const empCheckboxes = document.querySelectorAll('.emp-checkbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            empCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkActions();
+        });
+    }
+    
+    empCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+});
+
+function editEmployee(employee) {
+    console.log('editEmployee called with:', employee);
+    currentViewEmployee = employee;
+    
+    // Parse employee data - handle both old and new data structures
+    const firstName = employee.first_name || employee.name?.split(' ')[0] || '';
+    const lastName = employee.last_name || employee.name?.split(' ').slice(1).join(' ') || '';
+    
+    console.log('Parsed names:', firstName, lastName);
+    
+    document.getElementById('edit_employee_id').value = employee.employee_id || '';
+    document.getElementById('edit_first_name').value = firstName;
+    document.getElementById('edit_last_name').value = lastName;
+    document.getElementById('edit_email').value = employee.email || '';
+    document.getElementById('edit_phone').value = employee.phone || '';
+    document.getElementById('edit_department_id').value = employee.department_id || '';
+    document.getElementById('edit_position').value = employee.position || '';
+    document.getElementById('edit_birth_date').value = employee.birth_date || '';
+    document.getElementById('edit_status').value = employee.status || 'active';
+    document.getElementById('edit_address').value = employee.address || '';
+    document.getElementById('edit_emergency_contact').value = employee.emergency_contact || '';
+    document.getElementById('edit_emergency_phone').value = employee.emergency_phone || '';
+    
+    console.log('All fields populated, showing modal');
+    
+    try {
+        new bootstrap.Modal(document.getElementById('editEmployeeModal')).show();
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        alert('Error opening edit modal: ' + error.message);
+    }
+}
+
+function viewEmployee(employee) {
+    currentViewEmployee = employee;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <div class="avatar-xl mx-auto mb-3">
+                    <div class="avatar-title rounded-circle bg-primary-subtle text-primary" style="width: 100px; height: 100px; font-size: 2rem;">
+                        ${employee.name ? employee.name[0] : 'N'}
+                    </div>
+                </div>
+                <h5>${employee.name || 'N/A'}</h5>
+                <p class="text-muted">${employee.employee_id}</p>
+                <span class="badge bg-${employee.status === 'active' ? 'success' : 'secondary'}-subtle text-${employee.status === 'active' ? 'success' : 'secondary'}">
+                    ${employee.status ? employee.status.charAt(0).toUpperCase() + employee.status.slice(1) : 'Active'}
+                </span>
+            </div>
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Email</label>
+                        <div>${employee.email || 'N/A'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Phone</label>
+                        <div>${employee.phone || 'N/A'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Department</label>
+                        <div>${employee.department_name || 'Unassigned'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Position</label>
+                        <div>${employee.position || 'Not specified'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Hire Date</label>
+                        <div>${employee.hire_date || 'N/A'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Birth Date</label>
+                        <div>${employee.birth_date || 'N/A'}</div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label text-muted small">Address</label>
+                        <div>${employee.address || 'N/A'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Emergency Contact</label>
+                        <div>${employee.emergency_contact || 'N/A'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Emergency Phone</label>
+                        <div>${employee.emergency_phone || 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('employeeDetailsContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('viewEmployeeModal')).show();
+}
+
+function editFromView() {
+    document.querySelector('#viewEmployeeModal .btn-close').click();
+    if (currentViewEmployee) {
+        editEmployee(currentViewEmployee);
+    }
+}
+
+function deleteEmployee(empId, empName) {
+    if (confirm(`Are you sure you want to delete employee "${empName}"? This action cannot be undone.`)) {
+        fetch(`/employees/delete/${empId}`, {
+            method: 'GET'
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting employee');
+            }
+        });
+    }
+}
+
+function manageSalary(empId) {
+    // Redirect to salary management page
+    window.location.href = `/salaries?employee=${empId}`;
+}
+
+function filterEmployees() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const deptFilter = document.getElementById('departmentFilter')?.value || 'all';
+    const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+    const sortBy = document.getElementById('sortSelect')?.value || 'name';
+    const order = document.getElementById('orderSelect')?.value || 'asc';
+    
+    // Filter table rows
+    const tableRows = Array.from(document.querySelectorAll('#employeesTable tbody tr'));
+    const cardRows = Array.from(document.querySelectorAll('.employee-card'));
+    
+    let visibleCount = 0;
+    
+    [...tableRows, ...cardRows].forEach(row => {
+        const empName = row.dataset.empName || '';
+        const empDept = row.dataset.empDept || '';
+        const empStatus = row.dataset.empStatus || 'active';
+        const empPosition = row.dataset.empPosition || '';
+        
+        // Search filter
+        const matchesSearch = empName.includes(searchTerm) || 
+                            empDept.toLowerCase().includes(searchTerm) ||
+                            empPosition.toLowerCase().includes(searchTerm);
+        
+        // Department filter
+        const matchesDept = deptFilter === 'all' || 
+                          (deptFilter && empDept && empDept.includes(deptFilter));
+        
+        // Status filter
+        const matchesStatus = statusFilter === 'all' || empStatus === statusFilter;
+        
+        const isVisible = matchesSearch && matchesDept && matchesStatus;
+        row.style.display = isVisible ? '' : 'none';
+        
+        if (isVisible) visibleCount++;
+    });
+    
+    // Update visible count
+    document.getElementById('visibleCount').textContent = visibleCount;
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('departmentFilter').value = 'all';
+    document.getElementById('statusFilter').value = 'all';
+    document.getElementById('sortSelect').value = 'name';
+    document.getElementById('orderSelect').value = 'asc';
+    filterEmployees();
+}
+
+function updateBulkActions() {
+    const selected = document.querySelectorAll('.emp-checkbox:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (selected.length > 0) {
+        bulkActions.style.display = 'block';
+        selectedCount.textContent = selected.length;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+function showEmployeeAnalytics() {
+    alert('Employee analytics dashboard would open here with charts and insights');
+}
+
+function exportEmployeesReport() {
+    window.open('/reports/employees', '_blank');
+}
+
+function exportToPDF() {
+    window.print();
+}
+
+function exportToExcel() {
+    const table = document.getElementById('employeesTable');
+    const rows = Array.from(table.querySelectorAll('tr'));
+    
+    const csv = rows.map(row => {
+        const cols = Array.from(row.querySelectorAll('th, td'));
+        return cols.slice(1, -1).map(col => `"${col.textContent.trim()}"`).join(',');
+    }).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'employees.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function bulkDepartmentUpdate() {
+    const selected = Array.from(document.querySelectorAll('.emp-checkbox:checked')).map(cb => cb.value);
+    // Implementation for bulk department change
+    alert('Bulk department update feature would be implemented here');
+}
+
+function bulkStatusUpdate() {
+    const selected = Array.from(document.querySelectorAll('.emp-checkbox:checked')).map(cb => cb.value);
+    // Implementation for bulk status update
+    alert('Bulk status update feature would be implemented here');
+}
+
+function bulkDelete() {
+    const selected = Array.from(document.querySelectorAll('.emp-checkbox:checked')).map(cb => cb.value);
+    
+    if (confirm(`Are you sure you want to delete ${selected.length} employees? This action cannot be undone.`)) {
+        // Implementation for bulk delete
+        alert('Bulk delete feature would be implemented here');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base_new.html" %}
+
+{% block title %}Clients - Lumorange Management{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Clients</h1>
+        <p class="page-subtitle">Manage your client relationships.</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
+        <i class="fas fa-plus me-2"></i>Add Client
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Company</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-3">
+                                    <div class="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                        {{ client[1][0] }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <strong>{{ client[1] }}</strong>
+                                    <div class="text-muted small">{{ client[4] if client[4] and client[4]|length > 50 else client[4] }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ client[5] or 'Not specified' }}</td>
+                        <td>{{ client[2] or 'No email' }}</td>
+                        <td>{{ client[3] or 'No phone' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary edit-client-btn" data-client="{{ client|tojson|safe }}"><i class="fas fa-edit"></i></button>
+                            <a href="/delete_client/{{ client[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this client?')"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Client Modal -->
+<div class="modal fade" id="addClientModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/add_client" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" name="contact_person" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Add Client</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Client Modal -->
+<div class="modal fade" id="editClientModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/update_client" method="post" id="editClientForm">
+                    <input type="hidden" name="client_id" id="edit_client_id">
+                    <div class="mb-3">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" name="name" id="edit_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" name="contact_person" id="edit_contact_person" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" id="edit_email" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" id="edit_phone" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" id="edit_address" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Update Client</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Event listeners for edit buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.edit-client-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const client = JSON.parse(this.dataset.client);
+            editClient(client);
+        });
+    });
+});
+
+function editClient(client) {
+    document.getElementById('edit_client_id').value = client[0] || '';
+    document.getElementById('edit_name').value = client[1] || '';
+    document.getElementById('edit_email').value = client[2] || '';
+    document.getElementById('edit_phone').value = client[3] || '';
+    document.getElementById('edit_address').value = client[4] || '';
+    document.getElementById('edit_contact_person').value = client[5] || '';
+    new bootstrap.Modal(document.getElementById('editClientModal')).show();
+}
+</script>
+
+<style>
+.avatar-sm {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+</style>
+{% endblock %}

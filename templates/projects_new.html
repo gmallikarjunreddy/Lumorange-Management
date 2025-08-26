@@ -1,0 +1,1128 @@
+{% extends "base_new.html" %}
+
+{% block title %}Projects - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Custom modal styling for smooth operation */
+    #addProjectModal {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1040;
+        width: 100vw;
+        height: 100vh;
+        background-color: #000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .modal-open {
+        overflow: hidden !important;
+    }
+    
+    /* Ensure proper z-index */
+    .modal {
+        z-index: 1055 !important;
+    }
+    
+    /* Remove any potential flickering animations */
+    .modal, .modal-dialog, .modal-content {
+        animation: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Projects</h1>
+        <p class="page-subtitle">Comprehensive project management with advanced analytics and team collaboration tools.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="showProjectAnalytics()">
+            <i class="fas fa-chart-pie me-2"></i>Analytics
+        </button>
+        <button class="btn btn-outline-success" onclick="exportProjectsReport()">
+            <i class="fas fa-file-export me-2"></i>Export
+        </button>
+        <button class="btn btn-primary" id="addProjectBtn">
+            <i class="fas fa-plus me-2"></i>Add Project
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card">
+            <div class="stats-icon bg-primary-subtle text-primary">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <div class="stats-content">
+                <h3 class="stats-number">{{ total_projects }}</h3>
+                <p class="stats-label">Total Projects</p>
+                <small class="text-muted">All time projects</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card">
+            <div class="stats-icon bg-success-subtle text-success">
+                <i class="fas fa-play-circle"></i>
+            </div>
+            <div class="stats-content">
+                <h3 class="stats-number">{{ active_projects }}</h3>
+                <p class="stats-label">Active Projects</p>
+                <small class="text-muted">Currently running</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card">
+            <div class="stats-icon bg-info-subtle text-info">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-content">
+                <h3 class="stats-number">{{ completed_projects }}</h3>
+                <p class="stats-label">Completed</p>
+                <small class="text-muted">Successfully finished</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card">
+            <div class="stats-icon bg-warning-subtle text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stats-content">
+                <h3 class="stats-number">{{ high_priority_projects }}</h3>
+                <p class="stats-label">High Priority</p>
+                <small class="text-muted">Urgent projects</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Overview -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="card-title mb-0 text-muted">Total Budget</h6>
+                    <i class="fas fa-dollar-sign text-success"></i>
+                </div>
+                <h4 class="text-success mb-0">${{ "%.2f"|format(total_budget) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="card-title mb-0 text-muted">Actual Costs</h6>
+                    <i class="fas fa-chart-line text-primary"></i>
+                </div>
+                <h4 class="text-primary mb-0">${{ "%.2f"|format(total_actual_cost) }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Filtering and Search -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label text-muted small">Search Projects</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0" id="searchInput" 
+                           placeholder="Search by name, description, client..." onkeyup="filterProjects()">
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label text-muted small">Status</label>
+                <select class="form-select" id="statusFilter" onchange="filterProjects()">
+                    <option value="">All Statuses</option>
+                    <option value="planning">Planning</option>
+                    <option value="active">Active</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label text-muted small">Priority</label>
+                <select class="form-select" id="priorityFilter" onchange="filterProjects()">
+                    <option value="">All Priorities</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label text-muted small">Department</label>
+                <select class="form-select" id="departmentFilter" onchange="filterProjects()">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label text-muted small">Sort By</label>
+                <select class="form-select" id="sortBy" onchange="filterProjects()">
+                    <option value="name">Name</option>
+                    <option value="created_date" selected>Created Date</option>
+                    <option value="start_date">Start Date</option>
+                    <option value="priority">Priority</option>
+                    <option value="progress">Progress</option>
+                    <option value="budget">Budget</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Bulk Operations -->
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <label class="form-check-label text-muted" for="selectAll">Select All</label>
+                </div>
+                <span class="text-muted small" id="selectedCount">0 selected</span>
+            </div>
+            <div class="bulk-actions" id="bulkActions" style="display: none;">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="bulkStatusUpdate()">
+                        <i class="fas fa-tasks me-1"></i>Update Status
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="bulkPriorityUpdate()">
+                        <i class="fas fa-flag me-1"></i>Set Priority
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="bulkDelete()">
+                        <i class="fas fa-trash me-1"></i>Delete Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Projects Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light border-0">
+                    <tr>
+                        <th class="border-0 ps-4" width="40">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="headerSelectAll">
+                            </div>
+                        </th>
+                        <th class="border-0">Project Details</th>
+                        <th class="border-0">Client</th>
+                        <th class="border-0">Department</th>
+                        <th class="border-0">Manager</th>
+                        <th class="border-0">Status</th>
+                        <th class="border-0">Priority</th>
+                        <th class="border-0">Progress</th>
+                        <th class="border-0">Budget</th>
+                        <th class="border-0">Timeline</th>
+                        <th class="border-0 pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr class="project-row" data-project-name="{{ project.name }}" 
+                        data-project-description="{{ project.description or '' }}" 
+                        data-client-name="{{ project.client_name or '' }}"
+                        data-department-name="{{ project.department_name or '' }}"
+                        data-status="{{ project.status }}" 
+                        data-priority="{{ project.priority }}">
+                        <td class="ps-4">
+                            <div class="form-check">
+                                <input class="form-check-input project-select" type="checkbox" 
+                                       value="{{ project.id }}" onchange="updateBulkActions()">
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="project-icon me-3">
+                                    <div class="avatar-sm">
+                                        <div class="avatar-title rounded bg-primary-subtle text-primary">
+                                            {{ project.name[0].upper() }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1">{{ project.name }}</h6>
+                                    <p class="text-muted small mb-1">{{ project.description[:60] + '...' if project.description and project.description|length > 60 else project.description or 'No description' }}</p>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-light text-dark small">ID: {{ project.id }}</span>
+                                        <span class="badge bg-light text-dark small">
+                                            <i class="fas fa-users me-1"></i>{{ project.team_size }} members
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                {{ project.client_name or 'No Client' }}
+                                {% if project.client_name %}
+                                <div class="text-muted small">
+                                    <i class="fas fa-building me-1"></i>Client
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                {{ project.department_name or 'No Department' }}
+                                {% if project.department_name %}
+                                <div class="text-muted small">
+                                    <i class="fas fa-sitemap me-1"></i>Department
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                {{ project.project_manager_name or 'No Manager' }}
+                                {% if project.project_manager_name %}
+                                <div class="text-muted small">
+                                    <i class="fas fa-user-tie me-1"></i>Project Manager
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% set status_config = {
+                                'planning': {'color': 'secondary', 'icon': 'fas fa-clipboard-list'},
+                                'active': {'color': 'primary', 'icon': 'fas fa-play-circle'},
+                                'on_hold': {'color': 'warning', 'icon': 'fas fa-pause-circle'},
+                                'completed': {'color': 'success', 'icon': 'fas fa-check-circle'},
+                                'cancelled': {'color': 'danger', 'icon': 'fas fa-times-circle'}
+                            } %}
+                            {% set config = status_config.get(project.status, {'color': 'secondary', 'icon': 'fas fa-question-circle'}) %}
+                            <span class="badge bg-{{ config.color }}-subtle text-{{ config.color }}">
+                                <i class="{{ config.icon }} me-1"></i>{{ project.status.replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td>
+                            {% set priority_config = {
+                                'low': {'color': 'success', 'icon': 'fas fa-arrow-down'},
+                                'medium': {'color': 'info', 'icon': 'fas fa-minus'},
+                                'high': {'color': 'warning', 'icon': 'fas fa-arrow-up'},
+                                'urgent': {'color': 'danger', 'icon': 'fas fa-exclamation'}
+                            } %}
+                            {% set config = priority_config.get(project.priority, {'color': 'secondary', 'icon': 'fas fa-question'}) %}
+                            <span class="badge bg-{{ config.color }}-subtle text-{{ config.color }}">
+                                <i class="{{ config.icon }} me-1"></i>{{ project.priority.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 60px; height: 8px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ project.progress or 0 }}%;"></div>
+                                </div>
+                                <span class="small text-muted">{{ project.progress or 0 }}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <div class="fw-semibold">${{ "%.0f"|format(project.budget or 0) }}</div>
+                                {% if project.actual_cost %}
+                                <div class="text-muted small">
+                                    Spent: ${{ "%.0f"|format(project.actual_cost) }}
+                                    {% set budget_used = (project.actual_cost / project.budget * 100) if project.budget and project.budget > 0 else 0 %}
+                                    <span class="badge bg-{{ 'danger' if budget_used > 100 else 'warning' if budget_used > 80 else 'success' }}-subtle text-{{ 'danger' if budget_used > 100 else 'warning' if budget_used > 80 else 'success' }} ms-1">
+                                        {{ "%.0f"|format(budget_used) }}%
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <div class="small">
+                                    <i class="fas fa-calendar-start me-1 text-muted"></i>
+                                    {{ project.start_date.strftime('%m/%d/%Y') if project.start_date else 'Not set' }}
+                                </div>
+                                {% if project.end_date %}
+                                <div class="small text-muted">
+                                    <i class="fas fa-calendar-end me-1"></i>
+                                    {{ project.end_date.strftime('%m/%d/%Y') }}
+                                </div>
+                                {% endif %}
+                                {% if project.days_remaining != 0 %}
+                                <div class="small">
+                                    {% if project.days_remaining > 0 %}
+                                    <span class="text-success">{{ project.days_remaining }} days left</span>
+                                    {% elif project.days_remaining < 0 %}
+                                    <span class="text-danger">{{ project.days_remaining|abs }} days overdue</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="pe-4">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info view-project-btn" 
+                                        data-proj-id="{{ project.id }}"
+                                        data-proj-name="{{ project.name }}"
+                                        data-proj-description="{{ project.description or '' }}"
+                                        data-client-name="{{ project.client_name or '' }}"
+                                        data-dept-name="{{ project.department_name or '' }}"
+                                        data-manager-name="{{ project.project_manager_name or '' }}"
+                                        data-status="{{ project.status }}"
+                                        data-priority="{{ project.priority }}"
+                                        data-progress="{{ project.progress or 0 }}"
+                                        data-budget="{{ project.budget or 0 }}"
+                                        data-actual-cost="{{ project.actual_cost or 0 }}"
+                                        data-start-date="{{ project.start_date }}"
+                                        data-end-date="{{ project.end_date or '' }}"
+                                        data-team-size="{{ project.team_size }}"
+                                        data-days-running="{{ project.days_running }}"
+                                        data-days-remaining="{{ project.days_remaining }}"
+                                        title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary edit-project-btn" 
+                                        data-proj-id="{{ project.id }}"
+                                        data-proj-name="{{ project.name }}"
+                                        data-proj-description="{{ project.description or '' }}"
+                                        data-client-id="{{ project.client_id }}"
+                                        data-dept-id="{{ project.department_id }}"
+                                        data-manager-id="{{ project.project_manager_id }}"
+                                        data-status="{{ project.status }}"
+                                        data-priority="{{ project.priority }}"
+                                        data-budget="{{ project.budget or 0 }}"
+                                        data-actual-cost="{{ project.actual_cost or 0 }}"
+                                        data-start-date="{{ project.start_date }}"
+                                        data-end-date="{{ project.end_date or '' }}"
+                                        data-progress="{{ project.progress or 0 }}"
+                                        title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success team-btn" 
+                                        data-proj-id="{{ project.id }}" 
+                                        data-proj-name="{{ project.name }}" title="Manage Team">
+                                    <i class="fas fa-users"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-project-btn" 
+                                        data-proj-id="{{ project.id }}" 
+                                        data-proj-name="{{ project.name }}" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+        {% if not projects %}
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-project-diagram fa-3x text-muted"></i>
+            </div>
+            <h5 class="text-muted">No Projects Found</h5>
+            <p class="text-muted mb-3">Start by creating your first project using the "Add Project" button above.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Project Modal -->
+<div class="modal" id="addProjectModal" tabindex="-1" style="display: none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Project</h5>
+                <button type="button" class="btn-close" id="closeAddModal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/add_project" method="post" id="addProjectForm">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Project Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Priority <span class="text-danger">*</span></label>
+                            <select name="priority" class="form-select" required>
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Project objectives, scope, and deliverables..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                <select name="department_id" class="form-select" required>
+                                    <option value="">Select Department</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Client</label>
+                                <select name="client_id" class="form-select">
+                                    <option value="">Select Client</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}">{{ client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project Manager</label>
+                                <select name="project_manager_id" class="form-select">
+                                    <option value="">Select Manager</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="planning" selected>Planning</option>
+                                    <option value="active">Active</option>
+                                    <option value="on_hold">On Hold</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date</label>
+                                <input type="date" name="end_date" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Budget ($)</label>
+                                <input type="number" name="budget" class="form-control" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Initial Progress (%)</label>
+                                <input type="number" name="progress" class="form-control" min="0" max="100" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" id="cancelAddModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal fade" id="editProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/update_project" method="post">
+                    <input type="hidden" name="project_id" id="edit_project_id">
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">Project Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" id="edit_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                <select name="priority" id="edit_priority" class="form-select" required>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                <select name="department_id" id="edit_department_id" class="form-select" required>
+                                    <option value="">Select Department</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Client</label>
+                                <select name="client_id" id="edit_client_id" class="form-select">
+                                    <option value="">Select Client</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}">{{ client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project Manager</label>
+                                <select name="project_manager_id" id="edit_project_manager_id" class="form-select">
+                                    <option value="">Select Manager</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" id="edit_status" class="form-select">
+                                    <option value="planning">Planning</option>
+                                    <option value="active">Active</option>
+                                    <option value="on_hold">On Hold</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" name="start_date" id="edit_start_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date</label>
+                                <input type="date" name="end_date" id="edit_end_date" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Budget ($)</label>
+                                <input type="number" name="budget" id="edit_budget" class="form-control" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Actual Cost ($)</label>
+                                <input type="number" name="actual_cost" id="edit_actual_cost" class="form-control" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Progress (%)</label>
+                                <input type="number" name="progress" id="edit_progress" class="form-control" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Project Modal -->
+<div class="modal fade" id="viewProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Project Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="projectViewContent">
+                <!-- Project details will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="editFromProjectView()">
+                    <i class="fas fa-edit me-2"></i>Edit Project
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentViewProject = null;
+
+// Filter and search functionality
+function filterProjects() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+    const priorityFilter = document.getElementById('priorityFilter').value.toLowerCase();
+    const departmentFilter = document.getElementById('departmentFilter').value.toLowerCase();
+    const sortBy = document.getElementById('sortBy').value;
+    
+    const rows = document.querySelectorAll('.project-row');
+    let visibleRows = [];
+    
+    rows.forEach(row => {
+        const projectName = row.dataset.projectName.toLowerCase();
+        const projectDescription = row.dataset.projectDescription.toLowerCase();
+        const clientName = row.dataset.clientName.toLowerCase();
+        const departmentName = row.dataset.departmentName.toLowerCase();
+        const status = row.dataset.status.toLowerCase();
+        const priority = row.dataset.priority.toLowerCase();
+        
+        const matchesSearch = !searchTerm || 
+            projectName.includes(searchTerm) || 
+            projectDescription.includes(searchTerm) || 
+            clientName.includes(searchTerm) ||
+            departmentName.includes(searchTerm);
+        
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesPriority = !priorityFilter || priority === priorityFilter;
+        const matchesDepartment = !departmentFilter || departmentName === departmentFilter;
+        
+        if (matchesSearch && matchesStatus && matchesPriority && matchesDepartment) {
+            row.style.display = '';
+            visibleRows.push(row);
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Bulk operations
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.project-select');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selected = document.querySelectorAll('.project-select:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = `${selected.length} selected`;
+    bulkActions.style.display = selected.length > 0 ? 'block' : 'none';
+}
+
+// CRUD Operations
+function editProject(project) {
+    console.log('editProject called with:', project);
+    currentViewProject = project;
+    
+    document.getElementById('edit_project_id').value = project.proj_id || '';
+    document.getElementById('edit_name').value = project.proj_name || '';
+    document.getElementById('edit_description').value = project.proj_description || '';
+    document.getElementById('edit_department_id').value = project.dept_id || '';
+    document.getElementById('edit_client_id').value = project.client_id || '';
+    document.getElementById('edit_project_manager_id').value = project.manager_id || '';
+    document.getElementById('edit_status').value = project.status || 'planning';
+    document.getElementById('edit_priority').value = project.priority || 'medium';
+    document.getElementById('edit_budget').value = project.budget || '';
+    document.getElementById('edit_actual_cost').value = project.actual_cost || '';
+    document.getElementById('edit_progress').value = project.progress || '';
+    document.getElementById('edit_start_date').value = project.start_date || '';
+    document.getElementById('edit_end_date').value = project.end_date || '';
+    
+    new bootstrap.Modal(document.getElementById('editProjectModal')).show();
+}
+
+function viewProject(project) {
+    currentViewProject = project;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <div class="avatar-xl mx-auto mb-3">
+                    <div class="avatar-title rounded-circle bg-primary-subtle text-primary" style="width: 100px; height: 100px; font-size: 2rem;">
+                        ${project.proj_name ? project.proj_name[0].toUpperCase() : 'P'}
+                    </div>
+                </div>
+                <h5>${project.proj_name || 'N/A'}</h5>
+                <p class="text-muted">Project ID: ${project.proj_id}</p>
+            </div>
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Description</label>
+                        <div>${project.proj_description || 'No description available'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Client</label>
+                        <div>${project.client_name || 'No client assigned'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Department</label>
+                        <div>${project.dept_name || 'No department'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Project Manager</label>
+                        <div>${project.manager_name || 'No manager assigned'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Status</label>
+                        <div><span class="badge bg-primary-subtle text-primary">${project.status || 'N/A'}</span></div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Priority</label>
+                        <div><span class="badge bg-warning-subtle text-warning">${project.priority || 'N/A'}</span></div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Progress</label>
+                        <div>
+                            <div class="progress mb-1" style="height: 8px;">
+                                <div class="progress-bar" style="width: ${project.progress || 0}%;"></div>
+                            </div>
+                            ${project.progress || 0}%
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Team Size</label>
+                        <div>${project.team_size || 0} members</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Budget</label>
+                        <div>$${parseFloat(project.budget || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Actual Cost</label>
+                        <div>$${parseFloat(project.actual_cost || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">Start Date</label>
+                        <div>${project.start_date || 'Not set'}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-muted small">End Date</label>
+                        <div>${project.end_date || 'Not set'}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('projectViewContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('viewProjectModal')).show();
+}
+
+function editFromProjectView() {
+    if (currentViewProject) {
+        bootstrap.Modal.getInstance(document.getElementById('viewProjectModal')).hide();
+        setTimeout(() => editProject(currentViewProject), 300);
+    }
+}
+
+function deleteProject(projId, projName) {
+    if (confirm(`Are you sure you want to delete project "${projName}"? This action cannot be undone.`)) {
+        fetch(`/delete_project/${projId}`, {
+            method: 'GET'
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting project');
+            }
+        });
+    }
+}
+
+// Analytics and export functions
+function showProjectAnalytics() {
+    alert('Project analytics feature coming soon!');
+}
+
+function exportProjectsReport() {
+    alert('Export functionality coming soon!');
+}
+
+function bulkStatusUpdate() {
+    const selected = document.querySelectorAll('.project-select:checked');
+    if (selected.length === 0) {
+        alert('Please select projects to update');
+        return;
+    }
+    
+    const status = prompt('Enter new status (planning, active, on_hold, completed, cancelled):');
+    if (status) {
+        alert(`Bulk status update feature coming soon! Selected: ${selected.length} projects`);
+    }
+}
+
+function bulkPriorityUpdate() {
+    const selected = document.querySelectorAll('.project-select:checked');
+    if (selected.length === 0) {
+        alert('Please select projects to update');
+        return;
+    }
+    
+    const priority = prompt('Enter new priority (low, medium, high, urgent):');
+    if (priority) {
+        alert(`Bulk priority update feature coming soon! Selected: ${selected.length} projects`);
+    }
+}
+
+function bulkDelete() {
+    const selected = document.querySelectorAll('.project-select:checked');
+    if (selected.length === 0) {
+        alert('Please select projects to delete');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${selected.length} selected projects? This action cannot be undone.`)) {
+        alert('Bulk delete feature coming soon!');
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Edit project buttons
+    document.querySelectorAll('.edit-project-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Edit project button clicked');
+            try {
+                const project = {
+                    proj_id: this.dataset.projId,
+                    proj_name: this.dataset.projName,
+                    proj_description: this.dataset.projDescription,
+                    client_id: this.dataset.clientId,
+                    dept_id: this.dataset.deptId,
+                    manager_id: this.dataset.managerId,
+                    status: this.dataset.status,
+                    priority: this.dataset.priority,
+                    budget: this.dataset.budget,
+                    actual_cost: this.dataset.actualCost,
+                    progress: this.dataset.progress,
+                    start_date: this.dataset.startDate,
+                    end_date: this.dataset.endDate
+                };
+                
+                editProject(project);
+            } catch (error) {
+                console.error('Error in edit project button click handler:', error);
+                alert('Error loading project data: ' + error.message);
+            }
+        });
+    });
+
+    // View project buttons
+    document.querySelectorAll('.view-project-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            try {
+                const project = {
+                    proj_id: this.dataset.projId,
+                    proj_name: this.dataset.projName,
+                    proj_description: this.dataset.projDescription,
+                    client_name: this.dataset.clientName,
+                    dept_name: this.dataset.deptName,
+                    manager_name: this.dataset.managerName,
+                    status: this.dataset.status,
+                    priority: this.dataset.priority,
+                    progress: this.dataset.progress,
+                    budget: this.dataset.budget,
+                    actual_cost: this.dataset.actualCost,
+                    start_date: this.dataset.startDate,
+                    end_date: this.dataset.endDate,
+                    team_size: this.dataset.teamSize,
+                    days_running: this.dataset.daysRunning,
+                    days_remaining: this.dataset.daysRemaining
+                };
+                
+                viewProject(project);
+            } catch (error) {
+                console.error('Error in view project button click handler:', error);
+                alert('Error loading project data: ' + error.message);
+            }
+        });
+    });
+
+    // Delete project buttons
+    document.querySelectorAll('.delete-project-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            deleteProject(this.dataset.projId, this.dataset.projName);
+        });
+    });
+
+    // Team management buttons
+    document.querySelectorAll('.team-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            window.location.href = `/employee_projects?project=${this.dataset.projId}`;
+        });
+    });
+
+    // Prevent modal flickering by ensuring only one modal is open at a time
+    document.querySelectorAll('[data-bs-toggle="modal"]').forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Close any open modals first
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(modal => {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+        });
+    });
+
+    // Custom modal handling for Add Project
+    const addProjectBtn = document.getElementById('addProjectBtn');
+    const addProjectModal = document.getElementById('addProjectModal');
+    const closeAddModal = document.getElementById('closeAddModal');
+    const cancelAddModal = document.getElementById('cancelAddModal');
+    const modalBackdrop = document.createElement('div');
+    modalBackdrop.className = 'modal-backdrop';
+    modalBackdrop.style.display = 'none';
+
+    // Add backdrop to body
+    document.body.appendChild(modalBackdrop);
+
+    // Show modal function
+    function showAddProjectModal() {
+        modalBackdrop.style.display = 'block';
+        addProjectModal.style.display = 'block';
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
+        
+        // Add fade in effect
+        setTimeout(() => {
+            modalBackdrop.style.opacity = '0.5';
+            addProjectModal.style.opacity = '1';
+        }, 10);
+    }
+
+    // Hide modal function
+    function hideAddProjectModal() {
+        modalBackdrop.style.opacity = '0';
+        addProjectModal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modalBackdrop.style.display = 'none';
+            addProjectModal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            // Reset form
+            document.getElementById('addProjectForm').reset();
+        }, 300);
+    }
+
+    // Event listeners
+    if (addProjectBtn) {
+        addProjectBtn.addEventListener('click', showAddProjectModal);
+    }
+    
+    if (closeAddModal) {
+        closeAddModal.addEventListener('click', hideAddProjectModal);
+    }
+    
+    if (cancelAddModal) {
+        cancelAddModal.addEventListener('click', hideAddProjectModal);
+    }
+
+    // Close on backdrop click
+    modalBackdrop.addEventListener('click', hideAddProjectModal);
+
+    // Close on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && addProjectModal.style.display === 'block') {
+            hideAddProjectModal();
+        }
+    });
+
+    // Add single-click protection
+    let modalOpening = false;
+    document.querySelectorAll('[data-bs-target="#addProjectModal"]').forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (modalOpening) {
+                e.preventDefault();
+                return false;
+            }
+            modalOpening = true;
+            setTimeout(() => {
+                modalOpening = false;
+            }, 500);
+        });
+    });
+});
+</script>
+
+{% endblock %}

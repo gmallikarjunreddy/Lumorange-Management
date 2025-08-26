@@ -1,0 +1,1051 @@
+{% extends "base_new.html" %}
+
+{% block title %}Projects - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .project-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: none;
+        border-radius: 12px;
+    }
+    
+    .project-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .progress-bar {
+        height: 8px;
+        border-radius: 4px;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    .priority-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+    }
+    
+    .custom-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1050;
+        background-color: rgba(0,0,0,0.5);
+        align-items: flex-start;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        overflow-y: auto;
+        padding: 20px 0;
+    }
+    
+    .custom-modal.show {
+        display: flex !important;
+        opacity: 1;
+    }
+    
+    .modal-content-custom {
+        background: white;
+        border-radius: 12px;
+        max-width: 800px;
+        width: 90%;
+        max-height: calc(100vh - 40px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        transform: scale(0.7);
+        transition: transform 0.3s ease;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .custom-modal.show .modal-content-custom {
+        transform: scale(1);
+    }
+    
+    .modal-body {
+        overflow-y: auto;
+        max-height: calc(100vh - 200px);
+        flex: 1;
+    }
+    
+    .modal-header, .modal-footer {
+        flex-shrink: 0;
+    }
+    
+    /* Custom scrollbar styling */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+    
+    .custom-modal::-webkit-scrollbar {
+        width: 10px;
+    }
+    
+    .custom-modal::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+    }
+    
+    .custom-modal::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+        border-radius: 5px;
+    }
+    
+    .custom-modal::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.5);
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 0.75rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn {
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 500;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Projects</h1>
+            <p class="text-muted">Manage your projects and track progress</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus me-2"></i>Add Project
+        </button>
+        <button class="btn btn-outline-info ms-2" onclick="testModal()">
+            <i class="fas fa-vial me-2"></i>Test Modal
+        </button>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-project-diagram fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-1 text-white fw-bold">{{ projects|length }}</h5>
+                            <p class="card-text mb-0 text-white">Total Projects</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-play fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-1 text-white fw-bold">{{ projects|selectattr('status', 'equalto', 'active')|list|length }}</h5>
+                            <p class="card-text mb-0 text-white">Active</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card text-white" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-pause fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-1 text-white fw-bold">{{ projects|selectattr('status', 'equalto', 'on_hold')|list|length }}</h5>
+                            <p class="card-text mb-0 text-white">On Hold</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-check fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-1 text-white fw-bold">{{ projects|selectattr('status', 'equalto', 'completed')|list|length }}</h5>
+                            <p class="card-text mb-0 text-white">Completed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" placeholder="Search projects..." id="searchInput" onkeyup="filterProjects()">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="statusFilter" onchange="filterProjects()">
+                        <option value="">All Status</option>
+                        <option value="planning">Planning</option>
+                        <option value="active">Active</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="priorityFilter" onchange="filterProjects()">
+                        <option value="">All Priority</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="departmentFilter" onchange="filterProjects()">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" onclick="resetFilters()">
+                            <i class="fas fa-refresh me-1"></i>Reset
+                        </button>
+                        <button class="btn btn-outline-success" onclick="exportProjects()">
+                            <i class="fas fa-download me-1"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Grid -->
+    <div class="row" id="projectsGrid">
+        {% if projects %}
+            {% for project in projects %}
+            <div class="col-lg-4 col-md-6 mb-4 project-item" 
+                 data-name="{{ project.name|lower }}"
+                 data-status="{{ project.status }}"
+                 data-priority="{{ project.priority }}"
+                 data-department="{{ project.department_id }}">
+                <div class="card project-card h-100">
+                    <div class="card-header bg-light border-0 pb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title mb-1">{{ project.name }}</h6>
+                                <small class="text-muted">{{ project.client_name or 'No client' }}</small>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="viewProject({{ project.id }})">
+                                        <i class="fas fa-eye me-2"></i>View Details
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="editProject({{ project.id }})">
+                                        <i class="fas fa-edit me-2"></i>Edit
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteProject({{ project.id }}, '{{ project.name }}')">
+                                        <i class="fas fa-trash me-2"></i>Delete
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body pt-0">
+                        <p class="card-text text-muted small mb-3">{{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}</p>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="status-badge bg-{% if project.status == 'active' %}success{% elif project.status == 'completed' %}primary{% elif project.status == 'on_hold' %}warning{% else %}secondary{% endif %}-subtle text-{% if project.status == 'active' %}success{% elif project.status == 'completed' %}primary{% elif project.status == 'on_hold' %}warning{% else %}secondary{% endif %}">
+                                {{ project.status|title }}
+                            </span>
+                            <span class="priority-badge bg-{% if project.priority == 'urgent' %}danger{% elif project.priority == 'high' %}warning{% elif project.priority == 'medium' %}info{% else %}secondary{% endif %}-subtle text-{% if project.priority == 'urgent' %}danger{% elif project.priority == 'high' %}warning{% elif project.priority == 'medium' %}info{% else %}secondary{% endif %}">
+                                {{ project.priority|title }}
+                            </span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">Progress</small>
+                                <small class="text-muted">{{ project.progress or 0 }}%</small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-primary" style="width: {{ project.progress or 0 }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Budget</small>
+                                <strong>₹{{ "%.2f"|format(project.budget or 0) }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Department</small>
+                                <strong>{{ project.department_name }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 pt-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>{{ project.start_date }}
+                            </small>
+                            {% if project.manager_name %}
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>{{ project.manager_name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-project-diagram fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Projects Found</h5>
+                <p class="text-muted">Start by creating your first project.</p>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus me-2"></i>Create First Project
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Project Modal -->
+<div class="custom-modal" id="addProjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0.5); overflow-y: auto; padding: 20px 0;">
+    <div class="modal-content-custom" style="background: white; border-radius: 12px; max-width: 800px; width: 90%; max-height: calc(100vh - 40px); margin: auto; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="modal-header border-0 p-4 pb-2" style="flex-shrink: 0;">
+            <h5 class="modal-title">Add New Project</h5>
+            <button type="button" class="btn-close" onclick="closeAddModal()"></button>
+        </div>
+        <div class="modal-body p-4" style="overflow-y: auto; max-height: calc(100vh - 200px); flex: 1;">
+            <form action="/add_project" method="post" id="addProjectForm">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Project Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Priority <span class="text-danger">*</span></label>
+                        <select name="priority" class="form-select" required>
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Enter project description..."></textarea>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select name="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Client</label>
+                        <select name="client_id" class="form-select">
+                            <option value="">Select Client (Optional)</option>
+                            {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Project Manager</label>
+                        <select name="project_manager_id" class="form-select">
+                            <option value="">Select Manager (Optional)</option>
+                            {% for employee in employees %}
+                            <option value="{{ employee.id }}">{{ employee.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="planning" selected>Planning</option>
+                            <option value="active">Active</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" name="start_date" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control">
+                    </div>
+                </div>
+                
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Budget (₹)</label>
+                            <input type="number" name="budget" class="form-control" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Initial Progress (%)</label>
+                            <input type="number" name="progress" class="form-control" min="0" max="100" value="0">
+                        </div>
+                    </div>
+                    
+                    <!-- Additional fields to test scrolling -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">Project Notes</label>
+                            <textarea name="notes" class="form-control" rows="4" placeholder="Add any additional notes about this project..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Project Category</label>
+                            <select name="category" class="form-select">
+                                <option value="">Select Category</option>
+                                <option value="development">Development</option>
+                                <option value="design">Design</option>
+                                <option value="research">Research</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Expected Duration (months)</label>
+                            <input type="number" name="duration" class="form-control" min="1" max="60" placeholder="6">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Risk Level</label>
+                            <select name="risk_level" class="form-select">
+                                <option value="low">Low Risk</option>
+                                <option value="medium" selected>Medium Risk</option>
+                                <option value="high">High Risk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Stakeholders</label>
+                            <input type="text" name="stakeholders" class="form-control" placeholder="List key stakeholders...">
+                        </div>
+                    </div>                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="closeAddModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="custom-modal" id="editProjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0.5); overflow-y: auto; padding: 20px 0;">
+    <div class="modal-content-custom" style="background: white; border-radius: 12px; max-width: 800px; width: 90%; max-height: calc(100vh - 40px); margin: auto; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="modal-header border-0 p-4 pb-2" style="flex-shrink: 0;">
+            <h5 class="modal-title">Edit Project</h5>
+            <button type="button" class="btn-close" onclick="closeEditModal()"></button>
+        </div>
+        <div class="modal-body p-4" style="overflow-y: auto; max-height: calc(100vh - 200px); flex: 1;">
+            <form action="/update_project" method="post" id="editProjectForm">
+                <input type="hidden" name="project_id" id="edit_project_id">
+                
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Project Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="edit_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Priority <span class="text-danger">*</span></label>
+                        <select name="priority" id="edit_priority" class="form-select" required>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Department <span class="text-danger">*</span></label>
+                        <select name="department_id" id="edit_department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Client</label>
+                        <select name="client_id" id="edit_client_id" class="form-select">
+                            <option value="">Select Client</option>
+                            {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Project Manager</label>
+                        <select name="project_manager_id" id="edit_project_manager_id" class="form-select">
+                            <option value="">Select Manager</option>
+                            {% for employee in employees %}
+                            <option value="{{ employee.id }}">{{ employee.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select name="status" id="edit_status" class="form-select">
+                            <option value="planning">Planning</option>
+                            <option value="active">Active</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" name="start_date" id="edit_start_date" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" id="edit_end_date" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Budget (₹)</label>
+                        <input type="number" name="budget" id="edit_budget" class="form-control" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Actual Cost (₹)</label>
+                        <input type="number" name="actual_cost" id="edit_actual_cost" class="form-control" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Progress (%)</label>
+                        <input type="number" name="progress" id="edit_progress" class="form-control" min="0" max="100">
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Project Modal -->
+<div class="custom-modal" id="viewProjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0.5); overflow-y: auto; padding: 20px 0;">
+    <div class="modal-content-custom" style="background: white; border-radius: 12px; max-width: 800px; width: 90%; max-height: calc(100vh - 40px); margin: auto; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="modal-header border-0 p-4 pb-2" style="flex-shrink: 0;">
+            <h5 class="modal-title">Project Details</h5>
+            <button type="button" class="btn-close" onclick="closeViewModal()"></button>
+        </div>
+        <div class="modal-body p-4" id="viewProjectContent" style="overflow-y: auto; max-height: calc(100vh - 200px); flex: 1;">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer border-0 p-4 pt-2" style="flex-shrink: 0;">
+            <button type="button" class="btn btn-outline-primary" onclick="editFromView()">
+                <i class="fas fa-edit me-2"></i>Edit Project
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="closeViewModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentEditProject = null;
+let currentViewProject = null;
+
+// Modal functions
+function openAddModal() {
+    console.log('Opening add modal...');
+    const modal = document.getElementById('addProjectModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Reset scroll position
+    modal.scrollTop = 0;
+    const modalBody = modal.querySelector('.modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+    
+    // Force reflow and add show class
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+}
+
+function closeAddModal() {
+    console.log('Closing add modal...');
+    const modal = document.getElementById('addProjectModal');
+    modal.classList.remove('show');
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        document.getElementById('addProjectForm').reset();
+    }, 300);
+}
+
+function openEditModal(projectData) {
+    console.log('Opening edit modal...', projectData);
+    currentEditProject = projectData;
+    
+    // Populate form fields
+    document.getElementById('edit_project_id').value = projectData.id;
+    document.getElementById('edit_name').value = projectData.name || '';
+    document.getElementById('edit_description').value = projectData.description || '';
+    document.getElementById('edit_department_id').value = projectData.department_id || '';
+    document.getElementById('edit_client_id').value = projectData.client_id || '';
+    document.getElementById('edit_project_manager_id').value = projectData.project_manager_id || '';
+    document.getElementById('edit_status').value = projectData.status || 'planning';
+    document.getElementById('edit_priority').value = projectData.priority || 'medium';
+    document.getElementById('edit_budget').value = projectData.budget || '';
+    document.getElementById('edit_actual_cost').value = projectData.actual_cost || '';
+    document.getElementById('edit_progress').value = projectData.progress || '';
+    document.getElementById('edit_start_date').value = projectData.start_date || '';
+    document.getElementById('edit_end_date').value = projectData.end_date || '';
+    
+    const modal = document.getElementById('editProjectModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Reset scroll position
+    modal.scrollTop = 0;
+    const modalBody = modal.querySelector('.modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+    
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+}
+
+function closeEditModal() {
+    console.log('Closing edit modal...');
+    const modal = document.getElementById('editProjectModal');
+    modal.classList.remove('show');
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        currentEditProject = null;
+    }, 300);
+}
+
+function openViewModal(projectData) {
+    console.log('Opening view modal...', projectData);
+    currentViewProject = projectData;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <div class="mb-3">
+                    <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center" 
+                         style="width: 80px; height: 80px; font-size: 2rem; font-weight: bold;">
+                        ${projectData.name ? projectData.name[0].toUpperCase() : 'P'}
+                    </div>
+                </div>
+                <h5>${projectData.name}</h5>
+                <p class="text-muted">ID: ${projectData.id}</p>
+            </div>
+            <div class="col-md-8">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Description</label>
+                        <div>${projectData.description || 'No description'}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Client</label>
+                        <div>${projectData.client_name || 'No client assigned'}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Department</label>
+                        <div>${projectData.department_name || 'No department'}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Manager</label>
+                        <div>${projectData.manager_name || 'No manager assigned'}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Status</label>
+                        <div><span class="badge bg-primary-subtle text-primary">${projectData.status || 'N/A'}</span></div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Priority</label>
+                        <div><span class="badge bg-warning-subtle text-warning">${projectData.priority || 'N/A'}</span></div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Progress</label>
+                        <div>
+                            <div class="progress mb-1" style="height: 8px;">
+                                <div class="progress-bar" style="width: ${projectData.progress || 0}%;"></div>
+                            </div>
+                            ${projectData.progress || 0}%
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Budget</label>
+                        <div>₹${parseFloat(projectData.budget || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">Start Date</label>
+                        <div>${projectData.start_date || 'Not set'}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small">End Date</label>
+                        <div>${projectData.end_date || 'Not set'}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('viewProjectContent').innerHTML = content;
+    
+    const modal = document.getElementById('viewProjectModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Reset scroll position
+    modal.scrollTop = 0;
+    const modalBody = modal.querySelector('.modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+    
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+}
+
+function closeViewModal() {
+    console.log('Closing view modal...');
+    const modal = document.getElementById('viewProjectModal');
+    modal.classList.remove('show');
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        currentViewProject = null;
+    }, 300);
+}
+
+function editFromView() {
+    if (currentViewProject) {
+        closeViewModal();
+        setTimeout(() => openEditModal(currentViewProject), 300);
+    }
+}
+
+// Project operations
+function viewProject(projectId) {
+    // In a real app, you'd fetch project data via AJAX
+    // For now, we'll find it from the page data
+    const projectData = getProjectDataFromPage(projectId);
+    if (projectData) {
+        openViewModal(projectData);
+    }
+}
+
+function editProject(projectId) {
+    // In a real app, you'd fetch project data via AJAX
+    const projectData = getProjectDataFromPage(projectId);
+    if (projectData) {
+        openEditModal(projectData);
+    }
+}
+
+function deleteProject(projectId, projectName) {
+    if (confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+        window.location.href = `/delete_project/${projectId}`;
+    }
+}
+
+function getProjectDataFromPage(projectId) {
+    console.log('Getting project data for ID:', projectId);
+    
+    // Find the project card with the matching ID
+    const projectCards = document.querySelectorAll('.project-item');
+    let projectCard = null;
+    
+    // Look through all project cards to find the one with matching ID
+    for (let card of projectCards) {
+        const cardId = card.querySelector('[onclick*="' + projectId + '"]')?.getAttribute('onclick');
+        if (cardId && cardId.includes(projectId)) {
+            projectCard = card;
+            break;
+        }
+    }
+    
+    if (!projectCard) {
+        console.error('Project card not found for ID:', projectId);
+        return null;
+    }
+    
+    // Extract data from the card
+    try {
+        const nameElement = projectCard.querySelector('.card-title');
+        const clientElement = projectCard.querySelector('.text-muted');
+        const descriptionElement = projectCard.querySelector('.card-text');
+        const statusBadge = projectCard.querySelector('.status-badge');
+        const priorityBadge = projectCard.querySelector('.priority-badge');
+        const progressBar = projectCard.querySelector('.progress-bar');
+        const budgetElement = projectCard.querySelector('.col-6 strong');
+        const departmentElement = projectCard.querySelectorAll('.col-6 strong')[1];
+        
+        return {
+            id: projectId,
+            name: nameElement ? nameElement.textContent.trim() : 'Unknown Project',
+            client_name: clientElement ? clientElement.textContent.trim() : 'No client',
+            description: descriptionElement ? descriptionElement.textContent.trim() : 'No description',
+            status: statusBadge ? statusBadge.textContent.trim().toLowerCase() : 'planning',
+            priority: priorityBadge ? priorityBadge.textContent.trim().toLowerCase() : 'medium',
+            progress: progressBar ? parseInt(progressBar.style.width) || 0 : 0,
+            budget: budgetElement ? parseFloat(budgetElement.textContent.replace('₹', '')) || 0 : 0,
+            department_name: departmentElement ? departmentElement.textContent.trim() : 'No department',
+            start_date: new Date().toISOString().split('T')[0], // Default to today
+            end_date: '',
+            department_id: projectCard.dataset.department || '',
+            client_id: '',
+            project_manager_id: '',
+            actual_cost: 0,
+            manager_name: 'No manager assigned'
+        };
+    } catch (error) {
+        console.error('Error extracting project data:', error);
+        return {
+            id: projectId,
+            name: 'Project #' + projectId,
+            description: 'Project details',
+            status: 'active',
+            priority: 'medium',
+            progress: 50,
+            budget: 10000,
+            start_date: '2025-01-01',
+            end_date: '2025-12-31',
+            department_id: 1,
+            client_id: 1,
+            project_manager_id: 1,
+            client_name: 'Sample Client',
+            department_name: 'Sample Department',
+            manager_name: 'Sample Manager',
+            actual_cost: 0
+        };
+    }
+}
+
+// Filter functions
+function filterProjects() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const priorityFilter = document.getElementById('priorityFilter').value;
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    
+    const projects = document.querySelectorAll('.project-item');
+    
+    projects.forEach(project => {
+        const name = project.dataset.name;
+        const status = project.dataset.status;
+        const priority = project.dataset.priority;
+        const department = project.dataset.department;
+        
+        const matchesSearch = !searchTerm || name.includes(searchTerm);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesPriority = !priorityFilter || priority === priorityFilter;
+        const matchesDepartment = !departmentFilter || department === departmentFilter;
+        
+        if (matchesSearch && matchesStatus && matchesPriority && matchesDepartment) {
+            project.style.display = 'block';
+        } else {
+            project.style.display = 'none';
+        }
+    });
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    document.getElementById('departmentFilter').value = '';
+    filterProjects();
+}
+
+function exportProjects() {
+    alert('Export functionality will be implemented soon!');
+}
+
+// Test function for debugging
+function testModal() {
+    console.log('Testing modal functionality...');
+    alert('Modal test - checking if JavaScript is working. Check console for details.');
+    console.log('Available modal elements:');
+    console.log('- Add Modal:', document.getElementById('addProjectModal'));
+    console.log('- Edit Modal:', document.getElementById('editProjectModal')); 
+    console.log('- View Modal:', document.getElementById('viewProjectModal'));
+    
+    // Force open add modal for testing
+    const modal = document.getElementById('addProjectModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        setTimeout(() => modal.classList.add('show'), 100);
+    }
+}
+
+// Close modals when clicking outside
+document.addEventListener('click', function(e) {
+    console.log('Click event:', e.target.className);
+    if (e.target.classList.contains('custom-modal')) {
+        if (e.target.id === 'addProjectModal') {
+            closeAddModal();
+        }
+        if (e.target.id === 'editProjectModal') {
+            closeEditModal();
+        }
+        if (e.target.id === 'viewProjectModal') {
+            closeViewModal();
+        }
+    }
+});
+
+// Close modals with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const addModal = document.getElementById('addProjectModal');
+        const editModal = document.getElementById('editProjectModal');
+        const viewModal = document.getElementById('viewProjectModal');
+        
+        if (addModal && addModal.classList.contains('show')) {
+            closeAddModal();
+        }
+        if (editModal && editModal.classList.contains('show')) {
+            closeEditModal();
+        }
+        if (viewModal && viewModal.classList.contains('show')) {
+            closeViewModal();
+        }
+    }
+});
+
+// Set today's date as default for start date
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, setting up page...');
+    
+    const today = new Date().toISOString().split('T')[0];
+    const startDateInputs = document.querySelectorAll('input[name="start_date"]');
+    startDateInputs.forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
+    
+    // Test modal functionality
+    console.log('Modal elements check:');
+    console.log('Add modal:', document.getElementById('addProjectModal'));
+    console.log('Edit modal:', document.getElementById('editProjectModal'));
+    console.log('View modal:', document.getElementById('viewProjectModal'));
+});
+</script>
+{% endblock %}

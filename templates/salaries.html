@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Salaries - Lumorange Management{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-rupee-sign"></i> Salary Management</h2>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-plus"></i> Add Salary Record</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/add_salary">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="employee_id" class="form-label">Employee ID</label>
+                    <input type="number" name="employee_id" id="employee_id" class="form-control" placeholder="Enter employee ID" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="basic_salary" class="form-label">Basic Salary</label>
+                    <input type="number" step="0.01" name="basic_salary" id="basic_salary" class="form-control" placeholder="Enter basic salary" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="allowances" class="form-label">Allowances</label>
+                    <input type="number" step="0.01" name="allowances" id="allowances" class="form-control" placeholder="Enter allowances">
+                </div>
+                <div class="col-md-4">
+                    <label for="deductions" class="form-label">Deductions</label>
+                    <input type="number" step="0.01" name="deductions" id="deductions" class="form-control" placeholder="Enter deductions">
+                </div>
+                <div class="col-md-4">
+                    <label for="effective_date" class="form-label">Effective Date</label>
+                    <input type="date" name="effective_date" id="effective_date" class="form-control" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Salary Record</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Salary Records</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Employee</th>
+                        <th>Basic Salary</th>
+                        <th>Allowances</th>
+                        <th>Deductions</th>
+                        <th>Net Salary</th>
+                        <th>Effective Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for salary in salaries %}
+                    <tr>
+                        <td>{{ salary[0] }}</td>
+                        <td><i class="fas fa-user"></i> {{ salary[1] }}</td>
+                        <td><i class="fas fa-rupee-sign"></i> {{ format_currency(salary[2]) }}</td>
+                        <td><i class="fas fa-plus text-success"></i> {{ format_currency(salary[3]) }}</td>
+                        <td><i class="fas fa-minus text-danger"></i> {{ format_currency(salary[4]) }}</td>
+                        <td><strong><i class="fas fa-rupee-sign"></i> {{ format_currency(salary[5]) }}</strong></td>
+                        <td>{{ salary[6] }}</td>
+                        <td>
+                            <a href="/delete_salary/{{ salary[0] }}" class="btn btn-danger btn-sm" 
+                               onclick="return confirm('Are you sure you want to delete this salary record?')">
+                                <i class="fas fa-trash"></i> Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
