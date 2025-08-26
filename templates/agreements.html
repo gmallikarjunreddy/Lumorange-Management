@@ -18,22 +18,67 @@
             </button>
         </div>
     </div>
+    
+    <!-- Search Section -->
+    <div class="search-section mt-4">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="search-input-group">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="documentSearch" 
+                               placeholder="Search documents by title, content, or keywords..." 
+                               oninput="performSearch()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="documentFilter" onchange="performSearch()">
+                    <option value="">All Document Types</option>
+                    <option value="employment-agreement">Employment Agreement</option>
+                    <option value="nda-agreement">NDA Agreement</option>
+                    <option value="service-agreement">Service Agreement</option>
+                    <option value="contractor-agreement">Contractor Agreement</option>
+                    <option value="license-agreement">License Agreement</option>
+                    <option value="mou-agreement">MOU Agreement</option>
+                    <option value="vendor-agreement">Vendor Agreement</option>
+                    <option value="maintenance-agreement">Maintenance Agreement</option>
+                    <option value="dpa-agreement">Data Processing Agreement</option>
+                    <option value="custom-agreement">Custom Agreements</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="search-info">
+                    <span id="searchResults" class="badge bg-info">9 documents</span>
+                    <button class="btn btn-sm btn-outline-info ms-2" onclick="expandAllDocuments()">
+                        <i class="fas fa-expand-arrows-alt"></i> Expand All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
 /* Print-specific styles */
 @media print {
-    .no-print, .sidebar, .page-header, .btn, .modal, .agreement-actions {
+    .no-print, .sidebar, .page-header, .btn, .modal, .agreement-actions, .search-section {
         display: none !important;
     }
     
     body {
-        font-size: 12pt;
-        line-height: 1.4;
+        font-size: 11pt;
+        line-height: 1.5;
         color: #000 !important;
         background: white !important;
         margin: 0 !important;
         padding: 0 !important;
+        font-family: 'Times New Roman', serif !important;
     }
     
     .main-content {
@@ -50,53 +95,80 @@
     .agreement-card {
         break-after: page;
         box-shadow: none !important;
-        border: 1px solid #000 !important;
+        border: none !important;
         border-radius: 0 !important;
         margin-bottom: 0 !important;
         page-break-inside: avoid;
         width: 100% !important;
+        padding: 2cm 2.5cm !important;
     }
     
     .agreement-header {
-        border-bottom: 2px solid #000 !important;
-        background: #f8f9fa !important;
+        border-bottom: 3px double #000 !important;
+        background: transparent !important;
         color: #000 !important;
-        padding: 1rem !important;
-        margin: 0 !important;
+        padding: 0 0 1rem 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+        text-align: center;
     }
     
     .agreement-title {
         color: #000 !important;
-        font-size: 18pt !important;
-        margin: 0 !important;
+        font-size: 16pt !important;
+        font-weight: bold !important;
+        margin: 0 0 0.5rem 0 !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .agreement-subtitle {
         color: #000 !important;
-        margin: 0.5rem 0 0 0 !important;
+        margin: 0 !important;
+        font-style: italic;
+        font-size: 10pt;
     }
     
     .agreement-content {
-        padding: 1rem !important;
+        padding: 0 !important;
         margin: 0 !important;
+        line-height: 1.6;
     }
     
     .company-header {
         text-align: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #000;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #000;
     }
     
-    .company-logo {
-        display: none !important;
+    .company-header h3 {
+        font-size: 14pt !important;
+        font-weight: bold !important;
+        margin: 0 0 0.5rem 0 !important;
+        letter-spacing: 2px;
+    }
+    
+    .company-header p {
+        font-size: 10pt !important;
+        margin: 0.25rem 0 !important;
     }
     
     .form-section {
         background: transparent !important;
-        border: 1px solid #000 !important;
+        border: 2px solid #000 !important;
         padding: 1rem !important;
-        margin: 1rem 0 !important;
+        margin: 1.5rem 0 !important;
+    }
+    
+    .form-section::before {
+        content: "AGREEMENT DETAILS";
+        display: block;
+        font-weight: bold;
+        font-size: 10pt;
+        text-align: center;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .form-input {
@@ -105,13 +177,39 @@
         background: transparent !important;
         padding: 0.25rem 0 !important;
         min-height: 1.5rem !important;
-        font-size: 11pt !important;
+        font-size: 10pt !important;
+        font-family: 'Times New Roman', serif !important;
+    }
+    
+    .form-row {
+        margin-bottom: 0.8rem !important;
+        display: flex !important;
+        align-items: baseline !important;
+    }
+    
+    .form-label {
+        font-weight: bold !important;
+        font-size: 10pt !important;
+        min-width: 120px !important;
+        margin-right: 1rem !important;
     }
     
     .signature-section {
-        margin-top: 2rem !important;
-        border-top: 1px solid #000 !important;
-        padding-top: 1rem !important;
+        margin-top: 3rem !important;
+        border-top: 2px solid #000 !important;
+        padding-top: 2rem !important;
+        page-break-inside: avoid;
+    }
+    
+    .signature-section::before {
+        content: "EXECUTION";
+        display: block;
+        font-weight: bold;
+        font-size: 10pt;
+        text-align: center;
+        margin-bottom: 2rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .signature-line {
@@ -124,14 +222,39 @@
         color: #000 !important;
     }
     
+    .legal-text {
+        text-align: justify !important;
+        margin-bottom: 1.5rem !important;
+        font-size: 10pt !important;
+    }
+    
     .legal-text p {
         margin-bottom: 1rem !important;
-        text-align: justify !important;
+        text-indent: 0.5cm;
     }
     
     .clause-number {
         font-weight: bold !important;
         color: #000 !important;
+    }
+    
+    .legal-text ul {
+        margin: 0.5rem 0 1rem 1.5cm !important;
+        list-style-type: lower-alpha !important;
+    }
+    
+    .legal-text ul li {
+        margin-bottom: 0.3rem !important;
+        text-align: justify !important;
+    }
+    
+    /* Page numbering */
+    @page {
+        margin: 2cm 2.5cm;
+        @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 9pt;
+        }
     }
 }
 
@@ -139,6 +262,162 @@
 .agreements-container {
     display: grid;
     gap: 2rem;
+}
+
+/* Search Section Styles */
+.search-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    border: 1px solid #dee2e6;
+}
+
+.search-input-group .input-group {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.search-input-group .form-control {
+    border: none;
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+}
+
+.search-input-group .form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.search-input-group .input-group-text {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+.search-input-group .btn {
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+#documentFilter {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.search-info {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.search-info .badge {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Search Highlighting */
+.search-highlight {
+    background-color: #fff3cd;
+    padding: 0.1rem 0.2rem;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* Hidden/Filtered Documents */
+.agreement-card.search-hidden {
+    display: none !important;
+}
+
+/* Search Animation */
+.search-loading {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+/* Custom Agreement Styles */
+.agreement-card.custom-agreement {
+    border: 2px solid #28a745;
+    position: relative;
+}
+
+.agreement-card.custom-agreement::before {
+    content: "CUSTOM";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #28a745;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    z-index: 1;
+}
+
+.agreement-card.custom-agreement .agreement-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+/* Delete button styling */
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-outline-warning {
+    border-color: #ffc107;
+    color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
+/* Notification Toast Styles */
+.notification-toast {
+    font-size: 0.9rem;
+    border: none;
+}
+
+.notification-toast.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-left: 4px solid #198754;
+}
+
+.notification-toast.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.notification-toast.alert-info {
+    background-color: #cff4fc;
+    color: #055160;
+    border-left: 4px solid #0dcaf0;
+}
+
+/* Modal enhancements */
+.modal-header.bg-danger {
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #664d03;
 }
 
 .agreement-card {
@@ -280,8 +559,11 @@
 
 <div class="agreements-container">
     <!-- Employment Agreement -->
-    <div class="agreement-card" id="employment-agreement">
+    <div class="agreement-card" id="employment-agreement" data-doc-type="EMP">
         <div class="agreement-header">
+            <div class="document-number" style="text-align: right; font-size: 0.8rem; margin-bottom: 1rem; font-style: italic;">
+                Document No: LT-EMP-001 | Version: 2.0 | Effective: August 2025
+            </div>
             <h2 class="agreement-title">
                 <i class="fas fa-user-tie"></i>
                 Employment Agreement
@@ -308,54 +590,125 @@
             <div class="form-section">
                 <div class="form-row">
                     <label class="form-label">Employee Name:</label>
-                    <input type="text" class="form-input" id="emp_name" placeholder="Full Name">
+                    <input type="text" class="form-input" id="emp_name" placeholder="Full Legal Name" required>
                 </div>
                 <div class="form-row">
-                    <label class="form-label">Position:</label>
+                    <label class="form-label">Employee ID:</label>
+                    <input type="text" class="form-input" id="emp_id" placeholder="LT-EMP-XXXX">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Position/Title:</label>
                     <input type="text" class="form-input" id="emp_position" placeholder="Job Title">
                 </div>
                 <div class="form-row">
                     <label class="form-label">Department:</label>
-                    <input type="text" class="form-input" id="emp_department" placeholder="Department">
+                    <select class="form-input" id="emp_department">
+                        <option>Technology</option>
+                        <option>Operations</option>
+                        <option>Sales & Marketing</option>
+                        <option>Human Resources</option>
+                        <option>Finance & Accounts</option>
+                        <option>Business Development</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Employment Type:</label>
+                    <select class="form-input" id="emp_type">
+                        <option>Full-Time Permanent</option>
+                        <option>Full-Time Contract</option>
+                        <option>Part-Time</option>
+                        <option>Consultant</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <label class="form-label">Start Date:</label>
-                    <input type="date" class="form-input" id="emp_start_date">
+                    <input type="date" class="form-input" id="emp_start_date" required>
                 </div>
                 <div class="form-row">
-                    <label class="form-label">Salary (₹/month):</label>
-                    <input type="text" class="form-input" id="emp_salary" placeholder="Amount in Rupees">
+                    <label class="form-label">Annual Salary (₹):</label>
+                    <input type="text" class="form-input" id="emp_salary" placeholder="CTC in Indian Rupees">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Reporting Manager:</label>
+                    <input type="text" class="form-input" id="emp_manager" placeholder="Manager Name & Title">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Work Location:</label>
+                    <select class="form-input" id="emp_location">
+                        <option>Hyderabad Office</option>
+                        <option>Remote</option>
+                        <option>Hybrid</option>
+                        <option>Client Site</option>
+                    </select>
                 </div>
             </div>
 
             <div class="legal-text">
-                <p><span class="clause-number">1. EMPLOYMENT TERMS:</span> This agreement is entered into between Lumorange Technologies ("Company") and the above-named employee ("Employee") for the position specified above.</p>
+                <p><strong>RECITALS</strong></p>
+                <p><span class="clause-number">WHEREAS,</span> the Company desires to engage the services of Employee in the capacity set forth herein; and</p>
+                <p><span class="clause-number">WHEREAS,</span> Employee desires to be employed by the Company upon the terms and conditions set forth herein;</p>
+                <p><span class="clause-number">NOW, THEREFORE,</span> in consideration of the mutual covenants and agreements contained herein, and for other good and valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the parties agree as follows:</p>
                 
-                <p><span class="clause-number">2. DUTIES AND RESPONSIBILITIES:</span> Employee agrees to perform duties assigned by the Company with dedication, professionalism, and to the best of their ability. Employee will report to their immediate supervisor and comply with all company policies.</p>
+                <p><span class="clause-number">1. EMPLOYMENT AND DUTIES.</span></p>
+                <p>1.1 <strong>Employment.</strong> The Company hereby employs Employee, and Employee hereby accepts employment with the Company, subject to the terms and conditions of this Agreement.</p>
+                <p>1.2 <strong>Position and Duties.</strong> Employee shall serve in the position specified above and shall perform such duties and responsibilities as are customarily associated with such position and as may be reasonably assigned by the Company from time to time.</p>
+                <p>1.3 <strong>Best Efforts.</strong> Employee agrees to devote Employee's full business time, attention, and best efforts to the performance of Employee's duties hereunder and to act in the best interests of the Company.</p>
                 
-                <p><span class="clause-number">3. COMPENSATION:</span> Company agrees to pay the Employee the salary specified above, payable monthly. Salary reviews may be conducted annually at Company's discretion.</p>
+                <p><span class="clause-number">2. COMPENSATION AND BENEFITS.</span></p>
+                <p>2.1 <strong>Base Salary.</strong> As compensation for services rendered hereunder, the Company shall pay Employee an annual base salary as specified above, payable in accordance with the Company's standard payroll practices.</p>
+                <p>2.2 <strong>Benefits.</strong> Employee shall be entitled to participate in all employee benefit plans, programs, and arrangements that may be offered by the Company to its employees generally, subject to the terms and conditions of such plans.</p>
+                <p>2.3 <strong>Paid Time Off.</strong> Employee shall be entitled to paid time off in accordance with the Company's policies as in effect from time to time.</p>
                 
-                <p><span class="clause-number">4. CONFIDENTIALITY:</span> Employee agrees to maintain strict confidentiality regarding all company information, client data, proprietary technologies, and business processes during and after employment.</p>
+                <p><span class="clause-number">3. CONFIDENTIALITY AND PROPRIETARY INFORMATION.</span></p>
+                <p>3.1 <strong>Confidential Information.</strong> Employee acknowledges that during the course of employment, Employee will have access to confidential and proprietary information of the Company, including but not limited to trade secrets, customer lists, financial information, business strategies, and technical data.</p>
+                <p>3.2 <strong>Non-Disclosure.</strong> Employee agrees to hold all such confidential information in strict confidence and not to disclose such information to any third party without the prior written consent of the Company.</p>
+                <p>3.3 <strong>Return of Property.</strong> Upon termination of employment, Employee shall promptly return to the Company all confidential information, documents, and materials belonging to the Company.</p>
                 
-                <p><span class="clause-number">5. WORKING HOURS:</span> Standard working hours are Monday to Friday, 9:00 AM to 6:00 PM, with reasonable flexibility as business needs require.</p>
+                <p><span class="clause-number">4. TERM AND TERMINATION.</span></p>
+                <p>4.1 <strong>At-Will Employment.</strong> Employee's employment hereunder is "at will" and may be terminated by either party at any time, with or without cause, and with or without notice.</p>
+                <p>4.2 <strong>Notice Period.</strong> Notwithstanding the at-will nature of employment, Employee agrees to provide thirty (30) days written notice of resignation, and Company agrees to provide thirty (30) days written notice of termination without cause.</p>
+                <p>4.3 <strong>Immediate Termination.</strong> The Company may terminate Employee's employment immediately for cause, including but not limited to misconduct, breach of this Agreement, or violation of Company policies.</p>
                 
-                <p><span class="clause-number">6. BENEFITS:</span> Employee is eligible for company benefits including health insurance, paid leave, and professional development opportunities as per company policy.</p>
+                <p><span class="clause-number">5. NON-COMPETE AND NON-SOLICITATION.</span></p>
+                <p>5.1 <strong>Non-Compete.</strong> During the term of employment and for a period of one (1) year following termination, Employee shall not directly or indirectly engage in any business that competes with the Company's business within the geographical area of operation.</p>
+                <p>5.2 <strong>Non-Solicitation.</strong> During the term of employment and for a period of two (2) years following termination, Employee shall not solicit or attempt to solicit any customers, clients, or employees of the Company.</p>
                 
-                <p><span class="clause-number">7. TERMINATION:</span> Either party may terminate this agreement with 30 days written notice. Company reserves the right to terminate immediately for cause.</p>
-                
-                <p><span class="clause-number">8. GOVERNING LAW:</span> This agreement is governed by Indian law and subject to the jurisdiction of courts in [City].</p>
+                <p><span class="clause-number">6. GENERAL PROVISIONS.</span></p>
+                <p>6.1 <strong>Governing Law.</strong> This Agreement shall be governed by and construed in accordance with the laws of the State of Telangana, India, without regard to its conflict of laws principles.</p>
+                <p>6.2 <strong>Entire Agreement.</strong> This Agreement constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements relating to the subject matter hereof.</p>
+                <p>6.3 <strong>Amendments.</strong> This Agreement may be amended only by written agreement signed by both parties.</p>
+                <p>6.4 <strong>Severability.</strong> If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.</p>
             </div>
 
             <div class="signature-section">
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <p><strong>Employee Signature</strong></p>
-                    <p>Date: _______________</p>
+                <p><strong>IN WITNESS WHEREOF,</strong> the parties have executed this Employment Agreement as of the date last signed below.</p>
+                
+                <div class="signature-grid">
+                    <div class="signature-block">
+                        <p><strong>EMPLOYEE:</strong></p>
+                        <div class="signature-line"></div>
+                        <p>By: ________________________</p>
+                        <p>Name: <span id="emp_name_signature">[Employee Name]</span></p>
+                        <p>Date: _______________</p>
+                    </div>
+                    <div class="signature-block">
+                        <p><strong>COMPANY:</strong></p>
+                        <p><strong>LUMORANGE TECHNOLOGIES</strong></p>
+                        <div class="signature-line"></div>
+                        <p>By: ________________________</p>
+                        <p>Name: [Authorized Representative]</p>
+                        <p>Title: [Title]</p>
+                        <p>Date: _______________</p>
+                    </div>
                 </div>
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <p><strong>Company Representative</strong></p>
-                    <p>Date: _______________</p>
+                
+                <div class="witness-section">
+                    <p><strong>WITNESS/NOTARY:</strong> (if required by local law)</p>
+                    <div style="margin-top: 1rem;">
+                        <span class="witness-signature-line"></span>
+                        <span style="margin-left: 1rem;">Date: _______________</span>
+                    </div>
+                    <p style="margin-top: 0.5rem;">Notary Public Signature and Seal</p>
                 </div>
             </div>
         </div>
@@ -412,27 +765,50 @@
             </div>
 
             <div class="legal-text">
-                <p><span class="clause-number">1. CONFIDENTIAL INFORMATION:</span> "Confidential Information" includes all non-public, proprietary information disclosed by Lumorange Technologies, including but not limited to: technical data, source code, business processes, client information, financial data, and strategic plans.</p>
+                <p><strong>RECITALS</strong></p>
+                <p><span class="clause-number">WHEREAS,</span> the Disclosing Party possesses certain confidential and proprietary information; and</p>
+                <p><span class="clause-number">WHEREAS,</span> the Receiving Party desires access to such confidential information for the Purpose defined herein;</p>
+                <p><span class="clause-number">NOW, THEREFORE,</span> in consideration of the mutual covenants contained herein, the parties agree as follows:</p>
                 
-                <p><span class="clause-number">2. OBLIGATIONS:</span> The receiving party agrees to:</p>
+                <p><span class="clause-number">1. DEFINITIONS.</span></p>
+                <p>1.1 <strong>"Confidential Information"</strong> means all information, whether written, oral, electronic, visual, or in any other form, disclosed by the Disclosing Party to the Receiving Party, including but not limited to:</p>
                 <ul>
-                    <li>Keep all Confidential Information strictly confidential</li>
-                    <li>Not disclose information to third parties without written consent</li>
-                    <li>Use information solely for the intended business purpose</li>
-                    <li>Return or destroy all confidential materials upon request</li>
+                    <li>Technical data, know-how, research, product plans, products, services, customers, customer lists, markets, software, developments, inventions, processes, formulas, technology, designs, drawings, engineering, hardware configuration information;</li>
+                    <li>Financial information, procurement requirements, purchasing, manufacturing, customer information, investors, employees, business and contractual relationships, business forecasts, sales and merchandising plans, marketing plans;</li>
+                    <li>All other information that the Receiving Party knew, or reasonably should have known, was confidential information of the Disclosing Party.</li>
                 </ul>
                 
-                <p><span class="clause-number">3. EXCEPTIONS:</span> This agreement does not apply to information that:</p>
+                <p>1.2 <strong>"Purpose"</strong> means the evaluation of potential business relationships between the parties.</p>
+                
+                <p><span class="clause-number">2. CONFIDENTIALITY OBLIGATIONS.</span></p>
+                <p>2.1 <strong>Non-Disclosure.</strong> The Receiving Party agrees to hold all Confidential Information in strict confidence and not to disclose such Confidential Information to any third parties without the prior written consent of the Disclosing Party.</p>
+                <p>2.2 <strong>Use Restrictions.</strong> The Receiving Party agrees to use Confidential Information solely for the Purpose and not for any other purpose whatsoever.</p>
+                <p>2.3 <strong>Standard of Care.</strong> The Receiving Party agrees to exercise at least the same degree of care in protecting the Confidential Information as it uses to protect its own confidential information, but in no event less than reasonable care.</p>
+                <p>2.4 <strong>Access Limitation.</strong> The Receiving Party shall limit access to Confidential Information to those employees, agents, and advisers who have a legitimate need to know and who have been informed of the confidential nature of such information.</p>
+                
+                <p><span class="clause-number">3. EXCEPTIONS.</span></p>
+                <p>The obligations of confidentiality shall not apply to information that:</p>
                 <ul>
-                    <li>Is publicly available through no breach of this agreement</li>
-                    <li>Was known prior to disclosure</li>
-                    <li>Is independently developed without use of confidential information</li>
-                    <li>Is required to be disclosed by law</li>
+                    <li>Is or becomes generally known to the public through no breach of this Agreement by the Receiving Party;</li>
+                    <li>Is rightfully known by the Receiving Party prior to disclosure by the Disclosing Party;</li>
+                    <li>Is rightfully received by the Receiving Party from a third party without breach of any confidentiality obligation;</li>
+                    <li>Is independently developed by the Receiving Party without use of or reference to Confidential Information;</li>
+                    <li>Is required to be disclosed by law or court order, provided that the Receiving Party provides prompt notice to the Disclosing Party.</li>
                 </ul>
                 
-                <p><span class="clause-number">4. REMEDIES:</span> Breach of this agreement may cause irreparable harm. The disclosing party is entitled to seek injunctive relief and monetary damages.</p>
+                <p><span class="clause-number">4. RETURN OF MATERIALS.</span></p>
+                <p>Upon termination of this Agreement or upon request by the Disclosing Party, the Receiving Party shall promptly return or destroy all documents, materials, and other tangible manifestations of Confidential Information and all copies thereof.</p>
                 
-                <p><span class="clause-number">5. TERM:</span> This agreement remains in effect for the duration specified above from the effective date.</p>
+                <p><span class="clause-number">5. INJUNCTIVE RELIEF.</span></p>
+                <p>The Receiving Party acknowledges that breach of this Agreement may cause irreparable harm to the Disclosing Party for which monetary damages would be inadequate. Therefore, the Disclosing Party shall be entitled to seek injunctive relief to enforce the provisions of this Agreement without the necessity of proving actual damages.</p>
+                
+                <p><span class="clause-number">6. TERM.</span></p>
+                <p>This Agreement shall remain in effect for the duration specified above from the Effective Date, unless earlier terminated by mutual written consent of the parties. The obligations of confidentiality shall survive termination of this Agreement.</p>
+                
+                <p><span class="clause-number">7. MISCELLANEOUS.</span></p>
+                <p>7.1 <strong>Governing Law.</strong> This Agreement shall be governed by the laws of India without regard to conflict of laws principles.</p>
+                <p>7.2 <strong>Entire Agreement.</strong> This Agreement constitutes the entire agreement between the parties concerning the subject matter hereof.</p>
+                <p>7.3 <strong>Severability.</strong> If any provision is found unenforceable, the remainder shall remain in full force and effect.</p>
             </div>
 
             <div class="signature-section">
@@ -1152,94 +1528,237 @@ function printAgreement(agreementId) {
         <html>
         <head>
             <title>Print Agreement - Lumorange Technologies</title>
+            <meta charset="UTF-8">
             <style>
+                @page {
+                    size: A4;
+                    margin: 2cm 2.5cm;
+                    @top-right {
+                        content: "LUMORANGE TECHNOLOGIES";
+                        font-size: 8pt;
+                        font-style: italic;
+                    }
+                    @bottom-center {
+                        content: "Page " counter(page) " of " counter(pages);
+                        font-size: 9pt;
+                    }
+                    @bottom-left {
+                        content: "Confidential & Proprietary";
+                        font-size: 8pt;
+                        font-style: italic;
+                    }
+                }
+                
                 body { 
                     font-family: 'Times New Roman', serif; 
-                    margin: 1.5cm; 
-                    line-height: 1.6; 
-                    font-size: 12pt;
+                    font-size: 11pt;
+                    line-height: 1.6;
                     color: #000;
-                }
-                .agreement-card { 
-                    break-after: page; 
-                    border: none;
-                    margin-bottom: 0;
-                }
-                .agreement-header { 
-                    background: transparent !important; 
-                    color: #000 !important; 
-                    border-bottom: 2px solid #000; 
-                    padding: 1rem;
-                    margin-bottom: 1rem;
-                }
-                .agreement-title {
-                    font-size: 18pt;
-                    font-weight: bold;
-                    text-align: center;
                     margin: 0;
+                    padding: 0;
+                    text-align: justify;
                 }
-                .agreement-subtitle {
-                    text-align: center;
+                
+                .agreement-card { 
+                    break-after: page;
+                    border: none;
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                .agreement-header { 
+                    display: none !important;
+                }
+                
+                .agreement-title,
+                .agreement-subtitle,
+                .agreement-actions {
+                    display: none !important;
+                }
+                
+                .document-number {
+                    display: block !important;
+                    text-align: right;
+                    font-size: 8pt;
+                    margin-bottom: 1rem;
                     font-style: italic;
-                    margin-top: 0.5rem;
                 }
-                .agreement-actions { display: none !important; }
+                
                 .company-header {
                     text-align: center;
-                    border-bottom: 1px solid #000;
+                    border-bottom: 2px solid #000;
                     padding-bottom: 1rem;
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 2rem;
+                    page-break-inside: avoid;
                 }
-                .company-logo { display: none !important; }
-                .form-input { 
-                    border: none; 
-                    border-bottom: 1px solid #000; 
-                    padding: 0.25rem 0; 
-                    background: transparent;
-                    font-size: 11pt;
-                    min-height: 1.5rem;
-                    width: 100%;
+                
+                .company-header h3 {
+                    font-size: 14pt;
+                    font-weight: bold;
+                    margin: 0 0 0.5rem 0;
+                    letter-spacing: 3px;
                 }
+                
+                .company-header p {
+                    font-size: 10pt;
+                    margin: 0.25rem 0;
+                }
+                
                 .form-section {
-                    background: transparent !important;
-                    border: 1px solid #000;
+                    border: 2px solid #000;
                     padding: 1rem;
-                    margin: 1rem 0;
+                    margin: 1.5rem 0;
+                    page-break-inside: avoid;
+                    background: #f9f9f9;
                 }
+                
+                .form-section::before {
+                    content: "AGREEMENT PARTICULARS";
+                    display: block;
+                    font-weight: bold;
+                    font-size: 10pt;
+                    text-align: center;
+                    margin-bottom: 1rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    border-bottom: 1px solid #000;
+                    padding-bottom: 0.5rem;
+                }
+                
+                .form-input {
+                    border: none;
+                    border-bottom: 1px solid #000;
+                    background: transparent;
+                    padding: 0.25rem 0;
+                    font-size: 10pt;
+                    font-family: 'Times New Roman', serif;
+                    min-height: 1.2rem;
+                    font-weight: bold;
+                }
+                
                 .form-row {
-                    display: grid;
-                    grid-template-columns: 1fr 2fr;
-                    gap: 1rem;
                     margin-bottom: 0.8rem;
-                    align-items: center;
+                    display: flex;
+                    align-items: baseline;
                 }
-                .signature-line { 
-                    border-bottom: 1px solid #000; 
-                    height: 40px; 
-                    margin-bottom: 0.5rem; 
+                
+                .form-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    min-width: 140px;
+                    margin-right: 1rem;
+                    text-transform: uppercase;
+                    font-size: 9pt;
                 }
-                .signature-section {
-                    margin-top: 2rem;
-                    border-top: 1px solid #000;
-                    padding-top: 1rem;
-                }
+                
                 .legal-text {
+                    font-size: 10pt;
                     text-align: justify;
-                    margin: 1rem 0;
+                    line-height: 1.5;
                 }
+                
+                .legal-text p {
+                    margin-bottom: 1rem;
+                    text-indent: 0.5cm;
+                }
+                
+                .legal-text p:first-child,
+                .legal-text p:has(strong:first-child) {
+                    text-indent: 0;
+                }
+                
                 .clause-number {
                     font-weight: bold;
                 }
-                ul {
-                    margin: 0.5rem 0 1rem 2rem;
+                
+                .legal-text ul {
+                    margin: 0.5rem 0 1rem 1.5cm;
+                    list-style-type: lower-roman;
                 }
-                h3, h4 { 
-                    color: #000 !important; 
+                
+                .legal-text ul li {
+                    margin-bottom: 0.3rem;
+                    text-align: justify;
+                }
+                
+                .signature-section {
+                    margin-top: 3rem;
+                    border-top: 2px solid #000;
+                    padding-top: 2rem;
+                    page-break-inside: avoid;
+                }
+                
+                .signature-section::before {
+                    content: "EXECUTION AND ACKNOWLEDGMENT";
+                    display: block;
+                    font-weight: bold;
+                    font-size: 10pt;
                     text-align: center;
+                    margin-bottom: 2rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
                 }
-                @media print { 
-                    .agreement-card { break-after: page; }
-                    body { margin: 0; }
+                
+                .signature-grid {
+                    display: grid !important;
+                    grid-template-columns: 1fr 1fr !important;
+                    gap: 3rem !important;
+                    margin: 2rem 0 !important;
+                }
+                
+                .signature-line {
+                    border-bottom: 1px solid #000;
+                    height: 40px;
+                    margin-bottom: 0.5rem;
+                    width: 100%;
+                }
+                
+                .signature-block {
+                    margin-bottom: 1rem;
+                    page-break-inside: avoid;
+                }
+                
+                .signature-block p {
+                    margin: 0.2rem 0;
+                    font-size: 9pt;
+                }
+                
+                .witness-section {
+                    margin-top: 2rem;
+                    border-top: 1px solid #000;
+                    padding-top: 1rem;
+                    text-align: left;
+                }
+                
+                .witness-signature-line {
+                    width: 300px;
+                    display: inline-block;
+                    border-bottom: 1px solid #000;
+                    height: 30px;
+                    margin-right: 2rem;
+                }
+                
+                h1, h2, h3, h4, h5, h6 {
+                    color: #000;
+                    page-break-after: avoid;
+                }
+                
+                strong {
+                    font-weight: bold;
+                }
+                
+                /* Document header with numbering */
+                .agreement-card::before {
+                    content: "Document No: LT-" attr(data-doc-type) "-" counter(agreement-counter, decimal-leading-zero);
+                    display: block;
+                    text-align: right;
+                    font-size: 8pt;
+                    margin-bottom: 1rem;
+                    font-style: italic;
+                }
+                
+                .agreement-card {
+                    counter-increment: agreement-counter;
                 }
             </style>
         </head>
@@ -1392,6 +1911,12 @@ function updatePrintPreview(agreementId) {
 
 // Custom agreement modal
 function openCustomAgreementModal() {
+    // Reset modal to create mode
+    resetCustomAgreementModal();
+    
+    // Clear form fields
+    document.querySelector('.custom-agreement-form').reset();
+    
     const modal = new bootstrap.Modal(document.getElementById('customAgreementModal'));
     modal.show();
 }
@@ -1409,18 +1934,30 @@ function generateCustomAgreement() {
         return;
     }
 
+    // Generate unique ID for custom agreement
+    const customId = `custom-agreement-${Date.now()}`;
+
     // Create custom agreement HTML
     const customAgreementHTML = `
-        <div class="agreement-card" id="custom-agreement-${Date.now()}">
+        <div class="agreement-card custom-agreement" id="${customId}" data-doc-type="CUSTOM">
             <div class="agreement-header">
+                <div class="document-number" style="text-align: right; font-size: 0.8rem; margin-bottom: 1rem; font-style: italic;">
+                    Document No: LT-CUSTOM-${String(Date.now()).slice(-3)} | Version: 1.0 | Created: ${new Date().toLocaleDateString()}
+                </div>
                 <h2 class="agreement-title">
                     <i class="fas fa-file-contract"></i>
                     ${title}
                 </h2>
                 <p class="agreement-subtitle">Custom ${type}</p>
                 <div class="agreement-actions no-print">
-                    <button class="btn btn-sm btn-outline-light" onclick="printAgreement('custom-agreement-${Date.now()}')">
+                    <button class="btn btn-sm btn-outline-light" onclick="printAgreement('${customId}')" title="Print Agreement">
                         <i class="fas fa-print"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomAgreement('${customId}')" title="Delete Agreement">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="editCustomAgreement('${customId}')" title="Edit Agreement">
+                        <i class="fas fa-edit"></i>
                     </button>
                 </div>
             </div>
@@ -1447,19 +1984,28 @@ function generateCustomAgreement() {
                 </div>
                 <div class="legal-text">
                     ${terms.split('\n').map((term, index) => 
-                        `<p><span class="clause-number">${index + 1}.</span> ${term}</p>`
+                        term.trim() ? `<p><span class="clause-number">${index + 1}.</span> ${term}</p>` : ''
                     ).join('')}
                 </div>
                 <div class="signature-section">
-                    <div class="signature-block">
-                        <div class="signature-line"></div>
-                        <p><strong>Party 1</strong></p>
-                        <p>Date: _______________</p>
-                    </div>
-                    <div class="signature-block">
-                        <div class="signature-line"></div>
-                        <p><strong>Lumorange Technologies</strong></p>
-                        <p>Date: _______________</p>
+                    <p><strong>IN WITNESS WHEREOF,</strong> the parties have executed this ${title} as of the date last signed below.</p>
+                    
+                    <div class="signature-grid">
+                        <div class="signature-block">
+                            <p><strong>FIRST PARTY:</strong></p>
+                            <div class="signature-line"></div>
+                            <p>By: ________________________</p>
+                            <p>Name: [Authorized Representative]</p>
+                            <p>Date: _______________</p>
+                        </div>
+                        <div class="signature-block">
+                            <p><strong>LUMORANGE TECHNOLOGIES:</strong></p>
+                            <div class="signature-line"></div>
+                            <p>By: ________________________</p>
+                            <p>Name: [Authorized Representative]</p>
+                            <p>Title: [Title]</p>
+                            <p>Date: _______________</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1473,8 +2019,243 @@ function generateCustomAgreement() {
     bootstrap.Modal.getInstance(document.getElementById('customAgreementModal')).hide();
     document.querySelector('.custom-agreement-form').reset();
     
+    // Update search results count
+    updateSearchResults(document.querySelectorAll('.agreement-card:not(.search-hidden)').length);
+    
     // Scroll to new agreement
-    document.querySelector(`#custom-agreement-${Date.now()}`).scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+        document.querySelector(`#${customId}`).scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    
+    // Show success message
+    showNotification('Custom agreement created successfully!', 'success');
+}
+
+// Delete custom agreement function
+function deleteCustomAgreement(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    if (!agreement) {
+        showNotification('Agreement not found!', 'error');
+        return;
+    }
+
+    const agreementTitle = agreement.querySelector('.agreement-title').textContent.trim();
+    
+    // Create and show confirmation modal
+    const confirmationHTML = `
+        <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Confirm Deletion
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-warning"></i>
+                            <strong>Warning!</strong> This action cannot be undone.
+                        </div>
+                        <p>Are you sure you want to delete the following custom agreement?</p>
+                        <div class="bg-light p-3 rounded">
+                            <strong>${agreementTitle}</strong>
+                        </div>
+                        <p class="mt-3 text-muted">This will permanently remove the agreement from your list.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" onclick="confirmDeleteAgreement('${agreementId}')">
+                            <i class="fas fa-trash"></i> Delete Agreement
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('deleteConfirmModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', confirmationHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// Confirm deletion
+function confirmDeleteAgreement(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+    
+    // Add deletion animation
+    agreement.style.transition = 'all 0.5s ease';
+    agreement.style.transform = 'scale(0.95)';
+    agreement.style.opacity = '0.5';
+    
+    setTimeout(() => {
+        // Remove agreement
+        agreement.remove();
+        
+        // Update search results
+        updateSearchResults(document.querySelectorAll('.agreement-card:not(.search-hidden)').length);
+        
+        // Close modal
+        modal.hide();
+        
+        // Clean up modal
+        setTimeout(() => {
+            document.getElementById('deleteConfirmModal').remove();
+        }, 300);
+        
+        // Show success notification
+        showNotification('Agreement deleted successfully!', 'success');
+    }, 300);
+}
+
+// Edit custom agreement function
+function editCustomAgreement(agreementId) {
+    const agreement = document.getElementById(agreementId);
+    if (!agreement) {
+        showNotification('Agreement not found!', 'error');
+        return;
+    }
+
+    // Extract current data
+    const title = agreement.querySelector('.agreement-title').textContent.trim();
+    const subtitle = agreement.querySelector('.agreement-subtitle').textContent.replace('Custom ', '').trim();
+    const formInputs = agreement.querySelectorAll('.form-input');
+    const parties = formInputs[0]?.textContent || '';
+    const effectiveDate = formInputs[1]?.textContent || '';
+    const duration = formInputs[2]?.textContent || '';
+    const clauses = agreement.querySelectorAll('.legal-text p');
+    const terms = Array.from(clauses).map(clause => 
+        clause.textContent.replace(/^\d+\.\s*/, '').trim()
+    ).join('\n');
+
+    // Populate modal with existing data
+    document.getElementById('custom_title').value = title;
+    document.getElementById('custom_type').value = subtitle;
+    document.getElementById('custom_parties').value = parties;
+    document.getElementById('custom_date').value = effectiveDate;
+    document.getElementById('custom_duration').value = duration;
+    document.getElementById('custom_terms').value = terms;
+
+    // Change modal title and button text
+    const modalTitle = document.querySelector('#customAgreementModal .modal-title');
+    const generateButton = document.querySelector('#customAgreementModal .btn-primary');
+    
+    modalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Custom Agreement';
+    generateButton.textContent = 'Update Agreement';
+    generateButton.onclick = function() { updateCustomAgreement(agreementId); };
+
+    // Open modal
+    const modal = new bootstrap.Modal(document.getElementById('customAgreementModal'));
+    modal.show();
+}
+
+// Update custom agreement
+function updateCustomAgreement(agreementId) {
+    const title = document.getElementById('custom_title').value;
+    const type = document.getElementById('custom_type').value;
+    const parties = document.getElementById('custom_parties').value;
+    const terms = document.getElementById('custom_terms').value;
+    const date = document.getElementById('custom_date').value;
+    const duration = document.getElementById('custom_duration').value;
+
+    if (!title || !parties || !terms) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const agreement = document.getElementById(agreementId);
+    
+    // Update agreement content
+    agreement.querySelector('.agreement-title').innerHTML = `<i class="fas fa-file-contract"></i> ${title}`;
+    agreement.querySelector('.agreement-subtitle').textContent = `Custom ${type}`;
+    agreement.querySelector('h4').innerHTML = `<strong>${title.toUpperCase()}</strong>`;
+    
+    const formInputs = agreement.querySelectorAll('.form-input');
+    formInputs[0].textContent = parties;
+    formInputs[1].textContent = date;
+    formInputs[2].textContent = duration;
+    
+    // Update legal text
+    const legalTextDiv = agreement.querySelector('.legal-text');
+    legalTextDiv.innerHTML = terms.split('\n').map((term, index) => 
+        term.trim() ? `<p><span class="clause-number">${index + 1}.</span> ${term}</p>` : ''
+    ).join('');
+
+    // Close modal and reset form
+    bootstrap.Modal.getInstance(document.getElementById('customAgreementModal')).hide();
+    document.querySelector('.custom-agreement-form').reset();
+    
+    // Reset modal for future use
+    resetCustomAgreementModal();
+    
+    // Show success message
+    showNotification('Agreement updated successfully!', 'success');
+    
+    // Scroll to updated agreement
+    agreement.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Reset custom agreement modal to create mode
+function resetCustomAgreementModal() {
+    const modalTitle = document.querySelector('#customAgreementModal .modal-title');
+    const generateButton = document.querySelector('#customAgreementModal .btn-primary');
+    
+    modalTitle.innerHTML = '<i class="fas fa-plus"></i> Create Custom Agreement';
+    generateButton.textContent = 'Generate Agreement';
+    generateButton.onclick = generateCustomAgreement;
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} notification-toast`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${icon} me-2"></i>
+            <span>${message}</span>
+            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
 }
 
 // Auto-fill current date for date fields and add test data functionality
@@ -1550,5 +2331,199 @@ function fillAllTestData() {
     
     alert('Test data filled successfully! Now try printing individual agreements to see the updated data.');
 }
+
+// Search functionality
+let searchDebounceTimer;
+
+function performSearch() {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        const searchTerm = document.getElementById('documentSearch').value.toLowerCase();
+        const filterType = document.getElementById('documentFilter').value;
+        const agreements = document.querySelectorAll('.agreement-card');
+        let visibleCount = 0;
+        
+        // Clear previous highlights
+        clearSearchHighlights();
+        
+        agreements.forEach(agreement => {
+            let matchesSearch = true;
+            let matchesFilter = true;
+            
+            // Check filter
+            if (filterType) {
+                if (filterType === 'custom-agreement') {
+                    // Filter for custom agreements
+                    matchesFilter = agreement.classList.contains('custom-agreement');
+                } else {
+                    // Filter for specific agreement by ID
+                    matchesFilter = agreement.id === filterType;
+                }
+            }
+            
+            // Check search term
+            if (searchTerm) {
+                const title = agreement.querySelector('.agreement-title').textContent.toLowerCase();
+                const subtitle = agreement.querySelector('.agreement-subtitle')?.textContent.toLowerCase() || '';
+                const content = agreement.textContent.toLowerCase();
+                
+                matchesSearch = title.includes(searchTerm) || 
+                              subtitle.includes(searchTerm) || 
+                              content.includes(searchTerm);
+                
+                // Add highlighting if matches
+                if (matchesSearch && matchesFilter) {
+                    highlightSearchTerm(agreement, searchTerm);
+                }
+            }
+            
+            // Show/hide agreement
+            if (matchesSearch && matchesFilter) {
+                agreement.classList.remove('search-hidden');
+                visibleCount++;
+            } else {
+                agreement.classList.add('search-hidden');
+            }
+        });
+        
+        // Update results count
+        updateSearchResults(visibleCount);
+    }, 300);
+}
+
+function highlightSearchTerm(element, term) {
+    if (!term) return;
+    
+    const textNodes = getTextNodes(element);
+    textNodes.forEach(node => {
+        const text = node.textContent;
+        const regex = new RegExp(`(${term})`, 'gi');
+        
+        if (regex.test(text)) {
+            const highlightedText = text.replace(regex, '<span class="search-highlight">$1</span>');
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = highlightedText;
+            
+            // Replace text node with highlighted content
+            const parent = node.parentNode;
+            while (wrapper.firstChild) {
+                parent.insertBefore(wrapper.firstChild, node);
+            }
+            parent.removeChild(node);
+        }
+    });
+}
+
+function getTextNodes(element) {
+    const textNodes = [];
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function(node) {
+                // Skip script and style elements
+                if (node.parentElement.tagName === 'SCRIPT' || 
+                    node.parentElement.tagName === 'STYLE') {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                // Only include text nodes with non-whitespace content
+                return node.textContent.trim().length > 0 ? 
+                       NodeFilter.FILTER_ACCEPT : 
+                       NodeFilter.FILTER_REJECT;
+            }
+        }
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
+    
+    return textNodes;
+}
+
+function clearSearchHighlights() {
+    const highlights = document.querySelectorAll('.search-highlight');
+    highlights.forEach(highlight => {
+        const parent = highlight.parentNode;
+        parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+        parent.normalize(); // Merge adjacent text nodes
+    });
+}
+
+function clearSearch() {
+    document.getElementById('documentSearch').value = '';
+    document.getElementById('documentFilter').value = '';
+    performSearch();
+}
+
+function updateSearchResults(count) {
+    const resultElement = document.getElementById('searchResults');
+    if (count === 0) {
+        resultElement.textContent = 'No documents found';
+        resultElement.className = 'badge bg-warning';
+    } else if (count === 1) {
+        resultElement.textContent = '1 document';
+        resultElement.className = 'badge bg-success';
+    } else {
+        resultElement.textContent = `${count} documents`;
+        resultElement.className = 'badge bg-info';
+    }
+}
+
+function expandAllDocuments() {
+    const agreements = document.querySelectorAll('.agreement-card:not(.search-hidden)');
+    let allExpanded = true;
+    
+    // Check if all visible documents are already expanded
+    agreements.forEach(agreement => {
+        const content = agreement.querySelector('.agreement-content, .legal-text');
+        if (content && content.style.display === 'none') {
+            allExpanded = false;
+        }
+    });
+    
+    // Toggle expansion
+    agreements.forEach(agreement => {
+        const content = agreement.querySelector('.agreement-content, .legal-text');
+        if (content) {
+            if (allExpanded) {
+                // Collapse all
+                content.style.display = 'none';
+            } else {
+                // Expand all
+                content.style.display = 'block';
+            }
+        }
+    });
+    
+    // Update button text
+    const button = event.target.closest('button');
+    if (allExpanded) {
+        button.innerHTML = '<i class="fas fa-expand-arrows-alt"></i> Expand All';
+    } else {
+        button.innerHTML = '<i class="fas fa-compress-arrows-alt"></i> Collapse All';
+    }
+}
+
+// Initialize search on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial count
+    updateSearchResults(document.querySelectorAll('.agreement-card').length);
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+F to focus search
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('documentSearch').focus();
+        }
+        
+        // Escape to clear search
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    });
+});
 </script>
 {% endblock %}
