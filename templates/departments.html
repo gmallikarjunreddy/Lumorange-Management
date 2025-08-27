@@ -147,7 +147,14 @@
                                 </div>
                                 <div>
                                     <strong>{{ dept[1] }}</strong>
-                                    <div class="text-muted small">Created: {{ dept[5] if dept[5] else 'N/A' }}</div>
+                                    <div class="text-muted small">
+                                        Created: 
+                                        {% if dept[5] and dept[5] != 'N/A' %}
+                                            <span class="formatted-date">{{ dept[5] }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -463,49 +470,110 @@ function updateBulkActions() {
 function showEmployeeList(deptId, deptName) {
     // This would fetch and display employees in the department
     fetch(`/api/department/${deptId}/employees`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                }).catch(() => {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            // Check if the response has an error
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Use the employees array from the response
+            const employees = data.employees || [];
+            const department = data.department || { name: deptName };
+            
             // Show employee list in a modal
-            showEmployeeModal(deptName, data);
+            showEmployeeModal(department.name, employees);
         })
         .catch(error => {
             console.error('Error fetching employees:', error);
-            alert('Error loading employee list');
+            
+            // Show user-friendly error message
+            let errorMessage = 'Error loading employee list';
+            if (error.message.includes('not found')) {
+                errorMessage = `Department not found. It may have been deleted.`;
+            } else if (error.message.includes('Database error')) {
+                errorMessage = 'Database connection error. Please try again.';
+            } else if (error.message.includes('404')) {
+                errorMessage = `Department "${deptName}" not found.`;
+            } else {
+                errorMessage = `Error: ${error.message}`;
+            }
+            
+            // Show error in a modal instead of alert
+            showErrorModal('Employee List Error', errorMessage, deptId, deptName);
         });
 }
 
 function showEmployeeModal(deptName, employees) {
+    // Ensure employees is an array
+    if (!Array.isArray(employees)) {
+        employees = [];
+    }
+    
+    const employeeTableContent = employees.length > 0 
+        ? employees.map(emp => `
+            <tr>
+                <td>${emp.name}</td>
+                <td>${emp.position}</td>
+                <td>${emp.email}</td>
+                <td>${emp.hire_date}</td>
+            </tr>
+        `).join('')
+        : '<tr><td colspan="4" class="text-center text-muted">No employees found in this department</td></tr>';
+
     const modalContent = `
         <div class="modal fade" id="employeeListModal" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Employees in ${deptName}</h5>
+                        <h5 class="modal-title">
+                            <i class="fas fa-users me-2"></i>
+                            Employees in ${deptName} 
+                            <span class="badge bg-primary ms-2">${employees.length}</span>
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Position</th>
-                                        <th>Email</th>
-                                        <th>Hire Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${employees.map(emp => `
+                        ${employees.length > 0 ? `
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
                                         <tr>
-                                            <td>${emp.name}</td>
-                                            <td>${emp.position}</td>
-                                            <td>${emp.email}</td>
-                                            <td>${emp.hire_date}</td>
+                                            <th><i class="fas fa-user me-1"></i>Name</th>
+                                            <th><i class="fas fa-briefcase me-1"></i>Position</th>
+                                            <th><i class="fas fa-envelope me-1"></i>Email</th>
+                                            <th><i class="fas fa-calendar me-1"></i>Hire Date</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        ${employeeTableContent}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : `
+                            <div class="text-center py-4">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">No employees found in this department</h6>
+                                <p class="text-muted small">This department currently has no active employees assigned.</p>
+                            </div>
+                        `}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        ${employees.length > 0 ? `
+                            <button type="button" class="btn btn-primary" onclick="exportEmployeeList('${deptName}')">
+                                <i class="fas fa-download me-1"></i>Export List
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -515,7 +583,156 @@ function showEmployeeModal(deptName, employees) {
     // Remove existing modal and add new one
     document.querySelector('#employeeListModal')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalContent);
-    new bootstrap.Modal(document.getElementById('employeeListModal')).show();
+    
+    // Store employee data in the modal for export
+    const modal = document.getElementById('employeeListModal');
+    modal.setAttribute('data-employees', JSON.stringify(employees));
+    modal.setAttribute('data-department', deptName);
+    
+    // Create and show modal with proper accessibility
+    const bsModal = new bootstrap.Modal(modal, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
+    bsModal.show();
+    
+    // Fix accessibility issue by removing aria-hidden when modal is shown
+    modal.addEventListener('shown.bs.modal', function() {
+        modal.removeAttribute('aria-hidden');
+    });
+}
+
+function exportEmployeeList(deptName) {
+    try {
+        const modal = document.getElementById('employeeListModal');
+        const employeesData = modal.getAttribute('data-employees');
+        const departmentName = modal.getAttribute('data-department') || deptName;
+        
+        if (!employeesData) {
+            throw new Error('No employee data found');
+        }
+        
+        const employees = JSON.parse(employeesData);
+        
+        // Create CSV content
+        const headers = ['Name', 'Position', 'Email', 'Hire Date'];
+        const csvContent = [
+            headers.join(','),
+            ...employees.map(emp => [
+                `"${emp.name}"`,
+                `"${emp.position}"`,
+                `"${emp.email}"`,
+                emp.hire_date
+            ].join(','))
+        ].join('\n');
+        
+        // Create and download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${departmentName}_employees_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'toast show position-fixed top-0 end-0 m-3';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            <div class="toast-header">
+                <strong class="me-auto text-success">Export Complete</strong>
+                <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+            <div class="toast-body">
+                Employee list exported successfully!
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Error exporting employee list: ' + error.message);
+    }
+}
+
+function showErrorModal(title, message, deptId = null, deptName = null) {
+    const modalContent = `
+        <div class="modal fade" id="errorModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${title}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger d-flex align-items-center" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <div>${message}</div>
+                        </div>
+                        ${deptId ? `
+                            <div class="mt-3">
+                                <h6>Troubleshooting:</h6>
+                                <ul class="small text-muted">
+                                    <li>Check if the department still exists</li>
+                                    <li>Verify database connectivity</li>
+                                    <li>Try refreshing the page</li>
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        ${deptId ? `
+                            <button type="button" class="btn btn-outline-primary" onclick="retryEmployeeList(${deptId}, '${deptName}')">
+                                <i class="fas fa-redo me-1"></i>Retry
+                            </button>
+                        ` : ''}
+                        <button type="button" class="btn btn-primary" onclick="location.reload()">
+                            <i class="fas fa-refresh me-1"></i>Refresh Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing error modal and add new one
+    document.querySelector('#errorModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    new bootstrap.Modal(document.getElementById('errorModal')).show();
+}
+
+function retryEmployeeList(deptId, deptName) {
+    // Close error modal
+    bootstrap.Modal.getInstance(document.getElementById('errorModal')).hide();
+    
+    // Show loading indicator
+    const toast = document.createElement('div');
+    toast.className = 'toast show position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="toast-header">
+            <strong class="me-auto text-info">Retrying...</strong>
+        </div>
+        <div class="toast-body">
+            <i class="fas fa-spinner fa-spin me-2"></i>Loading employee list...
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    // Retry after a short delay
+    setTimeout(() => {
+        toast.remove();
+        showEmployeeList(deptId, deptName);
+    }, 1000);
 }
 
 function showDepartmentDetails(deptId) {
@@ -606,6 +823,41 @@ function bulkDelete() {
         });
     }
 }
+
+// Format dates on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Format any date elements
+    const dateElements = document.querySelectorAll('.formatted-date');
+    dateElements.forEach(element => {
+        const dateStr = element.textContent.trim();
+        if (dateStr && dateStr !== 'N/A' && dateStr !== 'Not specified') {
+            try {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    element.textContent = date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                }
+            } catch (e) {
+                console.log('Date formatting error:', e);
+            }
+        }
+    });
+    
+    // Fix any existing modal accessibility issues
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('shown.bs.modal', function() {
+            this.removeAttribute('aria-hidden');
+        });
+        
+        modal.addEventListener('hidden.bs.modal', function() {
+            this.setAttribute('aria-hidden', 'true');
+        });
+    });
+});
 </script>
 
 <style>

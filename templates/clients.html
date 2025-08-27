@@ -1,96 +1,537 @@
-{% extends "base_new.html" %}
+{% extends "base.html" %}
 
 {% block title %}Clients - Lumorange Management{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Clients</h1>
-        <p class="page-subtitle">Manage your client relationships.</p>
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <div class="d-flex align-items-center">
+                <h1 class="page-title">🤝 Client Management</h1>
+                <span class="badge bg-light text-dark ms-3" title="Keyboard Shortcuts: Ctrl+K (Search), Ctrl+N (New Client), ESC (Close Modal)">
+                    <i class="fas fa-keyboard me-1"></i>
+                    Shortcuts
+                </span>
+            </div>
+            <p class="page-subtitle">Manage your client relationships and track business opportunities.</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-outline-primary" onclick="exportClients()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                <i class="fas fa-plus me-2"></i>Add Client
+            </button>
+        </div>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
-        <i class="fas fa-plus me-2"></i>Add Client
-    </button>
+    
+    <!-- Client Statistics Cards -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="totalClients">{{ clients|length }}</h3>
+                    <p class="stat-label">Total Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="activeClients">{{ active_clients }}</h3>
+                    <p class="stat-label">Active Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-pause-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="inactiveClients">{{ inactive_clients }}</h3>
+                    <p class="stat-label">Inactive Clients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="newClients">{{ new_clients_this_month }}</h3>
+                    <p class="stat-label">New This Month</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="search-filter-section mt-4">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="search-input-group">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="clientSearch" 
+                               placeholder="Search clients by name, email, or contact..." 
+                               oninput="filterClients()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="statusFilter" onchange="filterClients()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="companyTypeFilter" onchange="filterClients()">
+                    <option value="">All Types</option>
+                    <option value="Corporation">Corporation</option>
+                    <option value="LLC">LLC</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                    <option value="Startup">Startup</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="bulk-actions" style="display: none;">
+                    <select class="form-select" id="bulkActionSelect">
+                        <option value="">Bulk Actions</option>
+                        <option value="activate">Activate Selected</option>
+                        <option value="deactivate">Deactivate Selected</option>
+                        <option value="delete">Delete Selected</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <span id="searchResults" class="badge bg-info">{{ clients|length }} clients</span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleSelectAll()">
+                <i class="fas fa-check-square"></i> Select All
+            </button>
+            <div class="btn-group ms-2" role="group">
+                <button class="btn btn-sm btn-outline-secondary" onclick="toggleTableDensity()" title="Toggle Table Density">
+                    <i class="fas fa-compress-alt" id="densityIcon"></i>
+                    <span id="densityText">Compact</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Company</th>
-                        <th>Contact Person</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for client in clients %}
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-sm me-3">
-                                    <div class="avatar-title rounded-circle bg-primary-subtle text-primary">
-                                        {{ client[1][0] }}
+<div class="clients-container">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="clientsTable">
+                    <thead>
+                        <tr>
+                            <th width="40" class="bg-gradient text-white border-0">
+                                <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(1)">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span><i class="fas fa-building me-2"></i>Company</span>
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </div>
+                            </th>
+                            <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(2)">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span><i class="fas fa-user me-2"></i>Contact</span>
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </div>
+                            </th>
+                            <th class="bg-gradient text-white border-0">
+                                <i class="fas fa-address-book me-2"></i>Contact Info
+                            </th>
+                            <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(4)">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span><i class="fas fa-industry me-2"></i>Type</span>
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </div>
+                            </th>
+                            <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(5)">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span><i class="fas fa-circle-check me-2"></i>Status</span>
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </div>
+                            </th>
+                            <th class="bg-gradient text-white border-0">
+                                <i class="fas fa-credit-card me-2"></i>Payment
+                            </th>
+                            <th class="bg-gradient text-white border-0">
+                                <i class="fas fa-calendar me-2"></i>Created
+                            </th>
+                            <th class="bg-gradient text-white border-0 text-center">
+                                <i class="fas fa-cogs me-2"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                        <tr class="client-row" data-client-id="{{ client[0] }}" 
+                            data-status="{{ client[10] }}" 
+                            data-company-type="{{ client[6] or '' }}"
+                            data-search-text="{{ (client[1] + ' ' + (client[5] or '') + ' ' + (client[2] or '') + ' ' + (client[3] or ''))|lower }}">
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input client-select" value="{{ client[0] }}" onchange="updateBulkActions()">
+                            </td>
+                            <td class="company-cell">
+                                <div class="d-flex align-items-center">
+                                    <div class="client-avatar me-3">
+                                        <div class="avatar-title rounded-circle {{ 'bg-success text-white' if client[10] == 'active' else 'bg-secondary text-white' }}">
+                                            {{ client[1][0].upper() if client[1] else 'C' }}
+                                        </div>
+                                    </div>
+                                    <div class="company-info">
+                                        <div class="company-name fw-bold text-dark">{{ client[1] }}</div>
+                                        {% if client[7] %}
+                                            <div class="company-website">
+                                                <i class="fas fa-globe text-primary me-1"></i>
+                                                <a href="{{ client[7] if client[7].startswith('http') else 'https://' + client[7] }}" 
+                                                   target="_blank" class="text-decoration-none text-primary small">
+                                                    {{ client[7][:30] + '...' if client[7]|length > 30 else client[7] }}
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                        {% if client[4] %}
+                                            <div class="company-address text-muted small mt-1" title="{{ client[4] }}">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                {{ client[4][:40] + '...' if client[4]|length > 40 else client[4] }}
+                                            </div>
+                                        {% endif %}
+                                        {% if client[8] %}
+                                            <div class="tax-id text-muted small">
+                                                <i class="fas fa-file-invoice me-1"></i>
+                                                Tax ID: {{ client[8] }}
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 </div>
-                                <div>
-                                    <strong>{{ client[1] }}</strong>
-                                    <div class="text-muted small">{{ client[4] if client[4] and client[4]|length > 50 else client[4] }}</div>
+                            </td>
+                            <td class="contact-cell">
+                                <div class="contact-person">
+                                    <div class="fw-semibold text-dark">{{ client[5] or 'Not specified' }}</div>
+                                    {% if client[5] %}
+                                        <div class="text-muted small">Contact Person</div>
+                                    {% endif %}
                                 </div>
-                            </div>
-                        </td>
-                        <td>{{ client[5] or 'Not specified' }}</td>
-                        <td>{{ client[2] or 'No email' }}</td>
-                        <td>{{ client[3] or 'No phone' }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary edit-client-btn" data-client="{{ client|tojson|safe }}"><i class="fas fa-edit"></i></button>
-                            <a href="/delete_client/{{ client[0] }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this client?')"><i class="fas fa-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                            <td class="contact-info-cell">
+                                <div class="contact-details">
+                                    {% if client[2] %}
+                                        <div class="mb-1 contact-item">
+                                            <i class="fas fa-envelope text-primary me-2"></i>
+                                            <a href="mailto:{{ client[2] }}" class="text-decoration-none">{{ client[2] }}</a>
+                                        </div>
+                                    {% endif %}
+                                    {% if client[3] %}
+                                        <div class="contact-item">
+                                            <i class="fas fa-phone text-success me-2"></i>
+                                            <a href="tel:{{ client[3] }}" class="text-decoration-none">{{ client[3] }}</a>
+                                        </div>
+                                    {% endif %}
+                                    {% if not client[2] and not client[3] %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            No contact info
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="type-cell">
+                                {% if client[6] %}
+                                    <span class="badge bg-primary rounded-pill">
+                                        <i class="fas fa-tag me-1"></i>{{ client[6] }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="fas fa-minus me-1"></i>Not specified
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="status-cell">
+                                <div class="status-container">
+                                    <span class="badge status-badge {{ 'bg-success' if client[10] == 'active' else 'bg-secondary' }} rounded-pill">
+                                        <i class="fas {{ 'fa-check-circle' if client[10] == 'active' else 'fa-pause-circle' }} me-1"></i>
+                                        {{ client[10].title() }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="payment-cell">
+                                <div class="payment-terms">
+                                    {% if client[9] %}
+                                        <span class="badge bg-info rounded-pill">
+                                            <i class="fas fa-clock me-1"></i>{{ client[9] }} days
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-question-circle me-1"></i>Not set
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="date-cell">
+                                <div class="created-date">
+                                    {% if client[11] %}
+                                        <div class="fw-semibold text-dark">{{ client[11].strftime('%b %d, %Y') }}</div>
+                                        <div class="text-muted small">{{ client[11].strftime('%I:%M %p') }}</div>
+                                    {% else %}
+                                        <span class="text-muted">Unknown</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="actions-cell">
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-info btn-action" 
+                                            onclick="toggleRowDetails({{ client[0] }})" 
+                                            title="Toggle Details"
+                                            data-bs-toggle="tooltip">
+                                        <i class="fas fa-chevron-down expand-icon"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary btn-action" 
+                                            onclick="viewClient({{ client[0] }})" 
+                                            title="View Client Details"
+                                            data-bs-toggle="tooltip">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary btn-action edit-client-btn" 
+                                            data-client="{{ client|tojson|safe }}" 
+                                            title="Edit Client Information"
+                                            data-bs-toggle="tooltip">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-{{ 'warning' if client[10] == 'active' else 'success' }} btn-action"
+                                            onclick="toggleClientStatus({{ client[0] }}, '{{ client[10] }}')"
+                                            title="{{ 'Deactivate' if client[10] == 'active' else 'Activate' }} Client"
+                                            data-bs-toggle="tooltip">
+                                        <i class="fas {{ 'fa-pause' if client[10] == 'active' else 'fa-play' }}"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger btn-action" 
+                                            onclick="confirmDeleteClient({{ client[0] }}, '{{ client[1] }}')" 
+                                            title="Delete Client"
+                                            data-bs-toggle="tooltip">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Expandable row details -->
+                        <tr class="row-details" id="details-{{ client[0] }}" style="display: none;">
+                            <td colspan="9" class="p-0">
+                                <div class="row-details-content p-3 bg-light border-top">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <h6 class="fw-bold text-primary mb-2">
+                                                <i class="fas fa-info-circle me-1"></i>Additional Information
+                                            </h6>
+                                            {% if client[8] %}
+                                                <p class="mb-1"><strong>Tax ID:</strong> {{ client[8] }}</p>
+                                            {% endif %}
+                                            {% if client[12] %}
+                                                <p class="mb-1"><strong>Last Updated:</strong> {{ client[12].strftime('%b %d, %Y at %I:%M %p') }}</p>
+                                            {% endif %}
+                                            <p class="mb-1"><strong>Client ID:</strong> #{{ client[0] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <h6 class="fw-bold text-success mb-2">
+                                                <i class="fas fa-handshake me-1"></i>Business Details
+                                            </h6>
+                                            {% if client[6] %}
+                                                <p class="mb-1"><strong>Industry:</strong> {{ client[6] }}</p>
+                                            {% endif %}
+                                            {% if client[9] %}
+                                                <p class="mb-1"><strong>Payment Terms:</strong> {{ client[9] }} days</p>
+                                            {% endif %}
+                                            <p class="mb-1"><strong>Status:</strong> 
+                                                <span class="badge {{ 'bg-success' if client[10] == 'active' else 'bg-secondary' }}">
+                                                    {{ client[10].title() }}
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <h6 class="fw-bold text-warning mb-2">
+                                                <i class="fas fa-chart-line me-1"></i>Quick Actions
+                                            </h6>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                {% if client[2] %}
+                                                    <a href="mailto:{{ client[2] }}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-envelope me-1"></i>Email
+                                                    </a>
+                                                {% endif %}
+                                                {% if client[3] %}
+                                                    <a href="tel:{{ client[3] }}" class="btn btn-sm btn-outline-success">
+                                                        <i class="fas fa-phone me-1"></i>Call
+                                                    </a>
+                                                {% endif %}
+                                                {% if client[7] %}
+                                                    <a href="{{ client[7] if client[7].startswith('http') else 'https://' + client[7] }}" 
+                                                       target="_blank" class="btn btn-sm btn-outline-info">
+                                                        <i class="fas fa-globe me-1"></i>Website
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if not clients %}
+                <div class="empty-state text-center py-5">
+                    <div class="empty-icon mb-3">
+                        <i class="fas fa-users fa-3x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted">No clients found</h5>
+                    <p class="text-muted">Start by adding your first client to manage your business relationships.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                        <i class="fas fa-plus me-2"></i>Add First Client
+                    </button>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Add Client Modal -->
 <div class="modal fade" id="addClientModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add New Client</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Client
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="/add_client" method="post">
-                    <div class="mb-3">
-                        <label class="form-label">Company Name</label>
-                        <input type="text" name="name" class="form-control" required>
+                <form action="/add_client" method="post" id="addClientForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" required 
+                                       placeholder="Enter company name">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Contact Person</label>
+                                <input type="text" name="contact_person" class="form-control" 
+                                       placeholder="Primary contact name">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Contact Person</label>
-                        <input type="text" name="contact_person" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" 
+                                       placeholder="company@example.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="text" name="phone" class="form-control" 
+                                       placeholder="+1 (555) 123-4567">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Company Type</label>
+                                <select name="company_type" class="form-select">
+                                    <option value="">Select type</option>
+                                    <option value="Corporation">Corporation</option>
+                                    <option value="LLC">LLC</option>
+                                    <option value="Partnership">Partnership</option>
+                                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                                    <option value="Startup">Startup</option>
+                                    <option value="Non-Profit">Non-Profit</option>
+                                    <option value="Government">Government</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Website</label>
+                                <input type="url" name="website" class="form-control" 
+                                       placeholder="https://company.com">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Phone</label>
-                        <input type="text" name="phone" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tax ID / Registration Number</label>
+                                <input type="text" name="tax_id" class="form-control" 
+                                       placeholder="Tax identification number">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Terms (Days)</label>
+                                <select name="payment_terms" class="form-select">
+                                    <option value="">Select payment terms</option>
+                                    <option value="15">15 days</option>
+                                    <option value="30" selected>30 days</option>
+                                    <option value="45">45 days</option>
+                                    <option value="60">60 days</option>
+                                    <option value="90">90 days</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Address</label>
-                        <textarea name="address" class="form-control" rows="3"></textarea>
+                        <textarea name="address" class="form-control" rows="3" 
+                                  placeholder="Full business address"></textarea>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Add Client</button>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="status" 
+                                   id="status" value="active" checked>
+                            <label class="form-check-label" for="status">
+                                Active Client
+                            </label>
+                        </div>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="submit" form="addClientForm" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Client
+                </button>
             </div>
         </div>
     </div>
@@ -98,55 +539,356 @@
 
 <!-- Edit Client Modal -->
 <div class="modal fade" id="editClientModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Client</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Client
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form action="/update_client" method="post" id="editClientForm">
                     <input type="hidden" name="client_id" id="edit_client_id">
-                    <div class="mb-3">
-                        <label class="form-label">Company Name</label>
-                        <input type="text" name="name" id="edit_name" class="form-control" required>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" id="edit_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Contact Person</label>
+                                <input type="text" name="contact_person" id="edit_contact_person" class="form-control">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Contact Person</label>
-                        <input type="text" name="contact_person" id="edit_contact_person" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" id="edit_email" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="text" name="phone" id="edit_phone" class="form-control">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" id="edit_email" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Company Type</label>
+                                <select name="company_type" id="edit_company_type" class="form-select">
+                                    <option value="">Select type</option>
+                                    <option value="Corporation">Corporation</option>
+                                    <option value="LLC">LLC</option>
+                                    <option value="Partnership">Partnership</option>
+                                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                                    <option value="Startup">Startup</option>
+                                    <option value="Non-Profit">Non-Profit</option>
+                                    <option value="Government">Government</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Website</label>
+                                <input type="url" name="website" id="edit_website" class="form-control">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Phone</label>
-                        <input type="text" name="phone" id="edit_phone" class="form-control">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tax ID / Registration Number</label>
+                                <input type="text" name="tax_id" id="edit_tax_id" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Terms (Days)</label>
+                                <select name="payment_terms" id="edit_payment_terms" class="form-select">
+                                    <option value="">Select payment terms</option>
+                                    <option value="15">15 days</option>
+                                    <option value="30">30 days</option>
+                                    <option value="45">45 days</option>
+                                    <option value="60">60 days</option>
+                                    <option value="90">90 days</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Address</label>
                         <textarea name="address" id="edit_address" class="form-control" rows="3"></textarea>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Update Client</button>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="status" 
+                                   id="edit_status" value="active">
+                            <label class="form-check-label" for="edit_status">
+                                Active Client
+                            </label>
+                        </div>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="submit" form="editClientForm" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Update Client
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Detail View Modal -->
+<div class="modal fade" id="clientDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Client Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="clientDetailContent">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="editFromDetailBtn">
+                    <i class="fas fa-edit me-1"></i>Edit Client
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning me-2"></i>
+                    <strong>Warning!</strong> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to delete the following client?</p>
+                <div class="bg-light p-3 rounded" id="clientToDelete">
+                    <!-- Client details loaded dynamically -->
+                </div>
+                <p class="mt-3 text-muted">This will permanently remove the client and all associated data.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-1"></i>Delete Client
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+// Global variables
+let selectedClients = [];
+let allClients = [];
+let currentClientForDeletion = null;
+
 // Event listeners for edit buttons
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize client data for filtering
+    allClients = Array.from(document.querySelectorAll('.client-row')).map(row => {
+        return {
+            element: row,
+            id: row.dataset.clientId,
+            status: row.dataset.status,
+            companyType: row.dataset.companyType,
+            searchText: row.dataset.searchText
+        };
+    });
+    
+    // Event listeners
     document.querySelectorAll('.edit-client-btn').forEach(button => {
         button.addEventListener('click', function() {
             const client = JSON.parse(this.dataset.client);
             editClient(client);
         });
     });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + K for search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            document.getElementById('clientSearch').focus();
+        }
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            // Close any open modals
+            const openModal = document.querySelector('.modal.show');
+            if (openModal) {
+                const modalInstance = bootstrap.Modal.getInstance(openModal);
+                if (modalInstance) modalInstance.hide();
+            }
+        }
+        // Ctrl/Cmd + N for new client
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            new bootstrap.Modal(document.getElementById('addClientModal')).show();
+        }
+    });
+    
+    // Format dates on page load
+    formatDates();
+    
+    // Initialize search
+    updateSearchResults(allClients.length);
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 });
 
+// Table sorting functionality
+let currentSortColumn = -1;
+let currentSortDirection = 'asc';
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('clientsTable');
+    const tbody = table.getElementsByTagName('tbody')[0];
+    const rows = Array.from(tbody.getElementsByTagName('tr'));
+    
+    // Determine sort direction
+    if (currentSortColumn === columnIndex) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortDirection = 'asc';
+        currentSortColumn = columnIndex;
+    }
+    
+    // Update sort icons
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.className = 'fas fa-sort sort-icon';
+    });
+    
+    const currentIcon = document.querySelectorAll('.sortable')[columnIndex - 1].querySelector('.sort-icon');
+    currentIcon.className = `fas fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} sort-icon`;
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal = '', bVal = '';
+        
+        switch(columnIndex) {
+            case 1: // Company name
+                aVal = a.querySelector('.company-name').textContent.toLowerCase();
+                bVal = b.querySelector('.company-name').textContent.toLowerCase();
+                break;
+            case 2: // Contact person
+                aVal = a.querySelector('.contact-person .fw-semibold').textContent.toLowerCase();
+                bVal = b.querySelector('.contact-person .fw-semibold').textContent.toLowerCase();
+                break;
+            case 4: // Company type
+                const aType = a.querySelector('.type-cell .badge');
+                const bType = b.querySelector('.type-cell .badge');
+                aVal = aType ? aType.textContent.toLowerCase() : '';
+                bVal = bType ? bType.textContent.toLowerCase() : '';
+                break;
+            case 5: // Status
+                aVal = a.dataset.status;
+                bVal = b.dataset.status;
+                break;
+        }
+        
+        if (currentSortDirection === 'asc') {
+            return aVal.localeCompare(bVal);
+        } else {
+            return bVal.localeCompare(aVal);
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Row expansion functionality
+function toggleRowDetails(clientId) {
+    const detailsRow = document.getElementById(`details-${clientId}`);
+    const expandIcon = document.querySelector(`button[onclick="toggleRowDetails(${clientId})"] .expand-icon`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        expandIcon.className = 'fas fa-chevron-up expand-icon';
+        
+        // Add animation
+        const content = detailsRow.querySelector('.row-details-content');
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+            content.style.transition = 'all 0.3s ease';
+            content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }, 10);
+    } else {
+        const content = detailsRow.querySelector('.row-details-content');
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+            detailsRow.style.display = 'none';
+            expandIcon.className = 'fas fa-chevron-down expand-icon';
+        }, 300);
+    }
+}
+
+// Table density toggle
+let isCompactMode = false;
+
+function toggleTableDensity() {
+    const table = document.getElementById('clientsTable');
+    const densityIcon = document.getElementById('densityIcon');
+    const densityText = document.getElementById('densityText');
+    
+    if (isCompactMode) {
+        // Switch to comfortable mode
+        table.classList.remove('table-sm');
+        densityIcon.className = 'fas fa-compress-alt';
+        densityText.textContent = 'Compact';
+        isCompactMode = false;
+    } else {
+        // Switch to compact mode
+        table.classList.add('table-sm');
+        densityIcon.className = 'fas fa-expand-alt';
+        densityText.textContent = 'Comfortable';
+        isCompactMode = true;
+    }
+}
+
+// Enhanced edit client function
 function editClient(client) {
     document.getElementById('edit_client_id').value = client[0] || '';
     document.getElementById('edit_name').value = client[1] || '';
@@ -154,7 +896,369 @@ function editClient(client) {
     document.getElementById('edit_phone').value = client[3] || '';
     document.getElementById('edit_address').value = client[4] || '';
     document.getElementById('edit_contact_person').value = client[5] || '';
+    document.getElementById('edit_company_type').value = client[6] || '';
+    document.getElementById('edit_website').value = client[7] || '';
+    document.getElementById('edit_tax_id').value = client[8] || '';
+    document.getElementById('edit_payment_terms').value = client[9] || '';
+    document.getElementById('edit_status').checked = (client[10] === 'active');
+    
     new bootstrap.Modal(document.getElementById('editClientModal')).show();
+}
+
+// View client details
+function viewClient(clientId) {
+    // Find client data from the table row
+    const clientRow = document.querySelector(`tr[data-client-id="${clientId}"]`);
+    if (!clientRow) return;
+    
+    // Extract client data from the row
+    const clientName = clientRow.querySelector('.client-name').textContent;
+    const contactPerson = clientRow.querySelector('.contact-person strong').textContent;
+    const status = clientRow.dataset.status;
+    const companyType = clientRow.dataset.companyType;
+    
+    // Get additional data from the cells
+    const contactInfo = clientRow.querySelector('.contact-info');
+    const email = contactInfo.querySelector('a[href^="mailto:"]')?.textContent || 'Not provided';
+    const phone = contactInfo.querySelector('a[href^="tel:"]')?.textContent || 'Not provided';
+    
+    const paymentTerms = clientRow.querySelector('.payment-terms .badge')?.textContent || 'Not set';
+    const website = clientRow.querySelector('a[target="_blank"]')?.href || '';
+    const address = clientRow.querySelector('div[title]')?.title || 'Not provided';
+    
+    // Build detail content
+    const detailContent = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="client-detail-section">
+                    <h6><i class="fas fa-building me-2"></i>Company Information</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr><td><strong>Company Name:</strong></td><td>${clientName}</td></tr>
+                        <tr><td><strong>Contact Person:</strong></td><td>${contactPerson}</td></tr>
+                        <tr><td><strong>Company Type:</strong></td><td>${companyType || 'Not specified'}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td><span class="badge ${status === 'active' ? 'bg-success' : 'bg-secondary'}">${status.toUpperCase()}</span></td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="client-detail-section">
+                    <h6><i class="fas fa-address-book me-2"></i>Contact Information</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr><td><strong>Email:</strong></td><td>${email !== 'Not provided' ? `<a href="mailto:${email}">${email}</a>` : email}</td></tr>
+                        <tr><td><strong>Phone:</strong></td><td>${phone !== 'Not provided' ? `<a href="tel:${phone}">${phone}</a>` : phone}</td></tr>
+                        <tr><td><strong>Website:</strong></td><td>${website ? `<a href="${website}" target="_blank">${website}</a>` : 'Not provided'}</td></tr>
+                        <tr><td><strong>Address:</strong></td><td>${address}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="client-detail-section">
+                    <h6><i class="fas fa-cog me-2"></i>Business Settings</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr><td><strong>Payment Terms:</strong></td><td>${paymentTerms}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('clientDetailContent').innerHTML = detailContent;
+    
+    // Set up edit button in modal
+    document.getElementById('editFromDetailBtn').onclick = function() {
+        bootstrap.Modal.getInstance(document.getElementById('clientDetailModal')).hide();
+        // Find the client data and trigger edit
+        const editBtn = clientRow.querySelector('.edit-client-btn');
+        if (editBtn) {
+            const client = JSON.parse(editBtn.dataset.client);
+            editClient(client);
+        }
+    };
+    
+    new bootstrap.Modal(document.getElementById('clientDetailModal')).show();
+}
+
+// Toggle client status
+function toggleClientStatus(clientId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    
+    // Send AJAX request to update status
+    fetch('/toggle_client_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            client_id: clientId,
+            status: newStatus
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Reload to reflect changes
+        } else {
+            alert('Error updating client status: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating client status');
+    });
+}
+
+// Confirm delete client
+function confirmDeleteClient(clientId, clientName) {
+    currentClientForDeletion = clientId;
+    
+    document.getElementById('clientToDelete').innerHTML = `
+        <strong><i class="fas fa-building me-2"></i>${clientName}</strong>
+        <div class="text-muted mt-1">Client ID: ${clientId}</div>
+    `;
+    
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        deleteClient(clientId);
+    };
+    
+    new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+}
+
+// Delete client
+function deleteClient(clientId) {
+    fetch(`/delete_client/${clientId}`, {
+        method: 'GET'
+    })
+    .then(response => {
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+            location.reload();
+        } else {
+            alert('Error deleting client');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting client');
+    });
+}
+
+// Search and filter functionality
+function filterClients() {
+    const searchTerm = document.getElementById('clientSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const companyTypeFilter = document.getElementById('companyTypeFilter').value;
+    
+    let visibleCount = 0;
+    
+    allClients.forEach(client => {
+        let visible = true;
+        
+        // Search filter
+        if (searchTerm && !client.searchText.includes(searchTerm)) {
+            visible = false;
+        }
+        
+        // Status filter
+        if (statusFilter && client.status !== statusFilter) {
+            visible = false;
+        }
+        
+        // Company type filter
+        if (companyTypeFilter && client.companyType !== companyTypeFilter) {
+            visible = false;
+        }
+        
+        // Show/hide row
+        if (visible) {
+            client.element.style.display = '';
+            visibleCount++;
+        } else {
+            client.element.style.display = 'none';
+        }
+    });
+    
+    // Update results count
+    updateSearchResults(visibleCount);
+}
+
+// Clear search
+function clearSearch() {
+    document.getElementById('clientSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('companyTypeFilter').value = '';
+    filterClients();
+}
+
+// Update search results count
+function updateSearchResults(count) {
+    const resultElement = document.getElementById('searchResults');
+    if (count === 0) {
+        resultElement.textContent = 'No clients found';
+        resultElement.className = 'badge bg-warning';
+    } else if (count === 1) {
+        resultElement.textContent = '1 client';
+        resultElement.className = 'badge bg-success';
+    } else {
+        resultElement.textContent = `${count} clients`;
+        resultElement.className = 'badge bg-info';
+    }
+}
+
+// Toggle select all
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const clientCheckboxes = document.querySelectorAll('.client-select');
+    
+    clientCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+// Update bulk actions visibility
+function updateBulkActions() {
+    const checkedBoxes = document.querySelectorAll('.client-select:checked');
+    const bulkActions = document.querySelector('.bulk-actions');
+    
+    if (checkedBoxes.length > 0) {
+        bulkActions.style.display = 'block';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.client-select');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    if (checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedBoxes.length > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+// Export clients
+function exportClients() {
+    // Get visible clients
+    const visibleRows = document.querySelectorAll('.client-row:not([style*="display: none"])');
+    
+    if (visibleRows.length === 0) {
+        alert('No clients to export');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['Company Name', 'Contact Person', 'Email', 'Phone', 'Company Type', 'Status', 'Payment Terms', 'Website', 'Address'];
+    const csvData = [headers.join(',')];
+    
+    visibleRows.forEach(row => {
+        const clientName = row.querySelector('.client-name').textContent;
+        const contactPerson = row.querySelector('.contact-person strong').textContent;
+        const email = row.querySelector('a[href^="mailto:"]')?.textContent || '';
+        const phone = row.querySelector('a[href^="tel:"]')?.textContent || '';
+        const companyType = row.dataset.companyType || '';
+        const status = row.dataset.status;
+        const paymentTerms = row.querySelector('.payment-terms .badge')?.textContent || '';
+        const website = row.querySelector('a[target="_blank"]')?.href || '';
+        const address = row.querySelector('div[title]')?.title || '';
+        
+        const rowData = [
+            `"${clientName}"`,
+            `"${contactPerson}"`,
+            `"${email}"`,
+            `"${phone}"`,
+            `"${companyType}"`,
+            `"${status}"`,
+            `"${paymentTerms}"`,
+            `"${website}"`,
+            `"${address}"`
+        ];
+        
+        csvData.push(rowData.join(','));
+    });
+    
+    // Download CSV
+    const csvContent = csvData.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `clients_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show success message
+    showNotification('Clients exported successfully!', 'success');
+}
+
+// Format dates
+function formatDates() {
+    const dateElements = document.querySelectorAll('.formatted-date');
+    dateElements.forEach(element => {
+        const dateStr = element.textContent.trim();
+        if (dateStr && dateStr !== 'N/A') {
+            try {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    element.textContent = date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                }
+            } catch (e) {
+                console.log('Date formatting error:', e);
+            }
+        }
+    });
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} notification-toast`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${icon} me-2"></i>
+            <span>${message}</span>
+            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
 }
 </script>
 
@@ -166,6 +1270,291 @@ function editClient(client) {
     align-items: center;
     justify-content: center;
     font-weight: 600;
+}
+.bg-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+.client-row:hover {
+    background-color: #f8f9fa;
+}
+.bulk-actions {
+    display: none;
+}
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+.card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+.filters-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 25px;
+    color: white;
+}
+.table-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+.table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    padding: 15px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+.table thead th.sortable:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    transform: translateY(-1px);
+}
+.sort-icon {
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+.sortable:hover .sort-icon {
+    opacity: 1;
+}
+.client-row {
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+.client-row:hover {
+    background-color: #f8f9ff;
+    border-left-color: #667eea;
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+.client-avatar .avatar-title {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.company-name {
+    font-size: 1rem;
+    line-height: 1.3;
+}
+.company-website a {
+    font-size: 0.85rem;
+    transition: color 0.2s ease;
+}
+.company-address, .tax-id {
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+.contact-details {
+    line-height: 1.4;
+}
+.contact-item {
+    padding: 2px 0;
+}
+.contact-item i {
+    width: 16px;
+    text-align: center;
+}
+.contact-item a {
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+.badge {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    font-weight: 500;
+}
+.status-badge {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    min-width: 80px;
+    text-align: center;
+}
+.created-date .fw-semibold {
+    font-size: 0.9rem;
+}
+.created-date .small {
+    font-size: 0.75rem;
+}
+.btn-action {
+    padding: 6px 10px;
+    margin: 0 1px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+.btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+.actions-cell .btn-group {
+    gap: 2px;
+}
+.row-details {
+    background-color: #f8f9fa;
+}
+.row-details-content {
+    border-left: 3px solid #667eea;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    transition: all 0.3s ease;
+}
+.expand-icon {
+    transition: transform 0.3s ease;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .company-website, .company-address, .tax-id {
+        display: none;
+    }
+    .contact-details {
+        font-size: 0.85rem;
+    }
+    .btn-action {
+        padding: 4px 8px;
+    }
+    .btn-action i {
+        font-size: 0.8rem;
+    }
+}
+.btn-action {
+    border: none;
+    border-radius: 25px;
+    padding: 8px 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+.btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.client-detail-section {
+    margin-bottom: 20px;
+}
+.client-detail-section h6 {
+    color: #495057;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+.badge {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+}
+.notification-toast {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+.contact-info {
+    font-size: 0.9rem;
+}
+.contact-info a {
+    color: #667eea;
+    text-decoration: none;
+}
+.contact-info a:hover {
+    color: #5a67d8;
+    text-decoration: underline;
+}
+.page-actions {
+    animation: slideInRight 0.5s ease-out;
+}
+.stats-card {
+    animation: slideInUp 0.6s ease-out;
+}
+.stats-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+.stats-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+.stats-card:nth-child(4) {
+    animation-delay: 0.3s;
+}
+.table-container {
+    animation: fadeIn 0.8s ease-out;
+}
+.client-row {
+    transition: all 0.2s ease;
+}
+.client-row:hover {
+    transform: scale(1.01);
+}
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.5);
+}
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 </style>
 {% endblock %}

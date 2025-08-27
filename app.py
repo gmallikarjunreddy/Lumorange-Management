@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
-from flask import request, redirect, url_for, flash
+from flask import request, redirect, url_for, flash, jsonify
 from datetime import datetime, date
 
 app = Flask(__name__)
@@ -448,7 +448,7 @@ def departments():
         cur = mysql.connection.cursor()
         cur.execute("""SELECT d.id, d.name, d.description, COALESCE(d.budget, 0) as budget, 
                        COUNT(e.id) as employee_count, 
-                       COALESCE(DATE_FORMAT(d.created_date, '%Y-%m-%d'), 'N/A') as created_date
+                       COALESCE(DATE_FORMAT(d.created_date, '%%Y-%%m-%%d'), 'N/A') as created_date
                        FROM departments d 
                        LEFT JOIN employees e ON d.id = e.department_id AND e.status = 'active'
                        GROUP BY d.id, d.name, d.description, d.budget, d.created_date
@@ -566,19 +566,39 @@ def delete_department(id):
 def api_department_employees(dept_id):
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # First check if the department exists
+        cur.execute("SELECT id, name FROM departments WHERE id = %s", (dept_id,))
+        department = cur.fetchone()
+        
+        if not department:
+            cur.close()
+            return {'error': f'Department with ID {dept_id} not found'}, 404
+        
+        # Get employees for the department
         cur.execute("""SELECT 
                           CONCAT(e.first_name, ' ', e.last_name) as name,
                           e.position,
                           e.email,
-                          DATE_FORMAT(e.hire_date, '%Y-%m-%d') as hire_date
+                          DATE_FORMAT(e.hire_date, '%%Y-%%m-%%d') as hire_date,
+                          e.id,
+                          e.status
                        FROM employees e 
                        WHERE e.department_id = %s AND e.status = 'active'
                        ORDER BY e.first_name, e.last_name""", (dept_id,))
         employees = cur.fetchall()
         cur.close()
-        return {'employees': employees}
+        
+        return {
+            'success': True,
+            'department': department,
+            'employees': employees,
+            'count': len(employees)
+        }
+        
     except Exception as e:
-        return {'error': str(e)}, 400
+        print(f"Error in api_department_employees: {str(e)}")  # Server-side logging
+        return {'error': f'Database error: {str(e)}'}, 500
 
 @app.route('/api/department/<int:dept_id>/details')
 def api_department_details(dept_id):
@@ -925,10 +945,33 @@ def delete_employee_project(id):
 @app.route('/clients')
 def clients():
     cur = mysql.connection.cursor()
-    cur.execute("SELECT id, name, email, phone, address, contact_person FROM clients")
+    cur.execute("""SELECT id, name, email, phone, address, contact_person, 
+                   company_type, website, tax_id, payment_terms, status, 
+                   created_date, updated_date FROM clients ORDER BY created_date DESC""")
     clients = cur.fetchall()
+    
+    # Calculate statistics
+    total_clients = len(clients)
+    active_clients = len([c for c in clients if c[10] == 'active'])
+    inactive_clients = total_clients - active_clients
+    
+    # Calculate new clients this month
+    from datetime import datetime, timedelta
+    current_month = datetime.now().replace(day=1)
+    new_this_month = len([c for c in clients if c[11] and c[11] >= current_month])
+    
+    # Get unique company types for filter
+    company_types = list(set([c[6] for c in clients if c[6]]))
+    
+    statistics = {
+        'total': total_clients,
+        'active': active_clients,
+        'inactive': inactive_clients,
+        'new_this_month': new_this_month
+    }
+    
     cur.close()
-    return render_template('clients.html', clients=clients)
+    return render_template('clients.html', clients=clients, statistics=statistics, company_types=company_types)
 
 @app.route('/add_client', methods=['POST'])
 def add_client():
@@ -937,13 +980,23 @@ def add_client():
     phone = request.form['phone']
     address = request.form['address']
     contact_person = request.form['contact_person']
+    company_type = request.form['company_type']
+    website = request.form['website']
+    tax_id = request.form['tax_id']
+    payment_terms = request.form['payment_terms']
+    status = 'active' if 'status' in request.form else 'inactive'
+    
     if not name:
         flash('Client name is required!', 'danger')
         return redirect(url_for('clients'))
+    
     try:
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO clients (name, email, phone, address, contact_person) VALUES (%s, %s, %s, %s, %s)", 
-                   (name, email, phone, address, contact_person))
+        cur.execute("""INSERT INTO clients (name, email, phone, address, contact_person, 
+                       company_type, website, tax_id, payment_terms, status) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", 
+                   (name, email, phone, address, contact_person, company_type, 
+                    website, tax_id, payment_terms, status))
         mysql.connection.commit()
         cur.close()
         flash('Client added successfully!', 'success')
@@ -960,11 +1013,19 @@ def update_client():
         phone = request.form['phone']
         address = request.form['address']
         contact_person = request.form['contact_person']
+        company_type = request.form['company_type']
+        website = request.form['website']
+        tax_id = request.form['tax_id']
+        payment_terms = request.form['payment_terms']
+        status = 'active' if 'status' in request.form else 'inactive'
         
         cur = mysql.connection.cursor()
         cur.execute("""UPDATE clients SET name = %s, email = %s, phone = %s, 
-                       address = %s, contact_person = %s WHERE id = %s""",
-                    (name, email, phone, address, contact_person, client_id))
+                       address = %s, contact_person = %s, company_type = %s, 
+                       website = %s, tax_id = %s, payment_terms = %s, status = %s,
+                       updated_date = NOW() WHERE id = %s""",
+                    (name, email, phone, address, contact_person, company_type,
+                     website, tax_id, payment_terms, status, client_id))
         mysql.connection.commit()
         cur.close()
         flash(f'Client "{name}" updated successfully!', 'success')
@@ -974,11 +1035,32 @@ def update_client():
 
 @app.route('/delete_client/<int:id>')
 def delete_client(id):
-    cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM clients WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cur.close()
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("DELETE FROM clients WHERE id = %s", (id,))
+        mysql.connection.commit()
+        cur.close()
+        flash('Client deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting client: {e}', 'danger')
     return redirect(url_for('clients'))
+
+@app.route('/toggle_client_status', methods=['POST'])
+def toggle_client_status():
+    try:
+        data = request.get_json()
+        client_id = data['client_id']
+        status = data['status']
+        
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE clients SET status = %s, updated_date = NOW() WHERE id = %s", 
+                   (status, client_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 # Salary CRUD routes
 @app.route('/salaries')
