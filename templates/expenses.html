@@ -1,109 +1,1421 @@
-{% extends "base_new.html" %}
+{% extends "base.html" %}
 
-{% block title %}Expenses - Lumorange Management{% endblock %}
+{% block title %}Expense Management - Lumorange{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Expenses</h1>
-        <p class="page-subtitle">Track and manage all expense reports.</p>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="fas fa-receipt me-3 text-primary"></i>Expense Management
+            </h2>
+            <p class="text-muted mb-0">Track, approve, and manage employee expenses efficiently</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportExpenses()">
+                <i class="fas fa-download me-2"></i>Export Data
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+                <i class="fas fa-plus me-2"></i>Add Expense
+            </button>
+        </div>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
-        <i class="fas fa-plus me-2"></i>Add Expense
-    </button>
-</div>
 
-<div class="card">
-    <div class="card-header">
-        <ul class="nav nav-tabs card-header-tabs">
-            <li class="nav-item">
-                <a class="nav-link active" href="#">All</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Submitted</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Approved</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Paid</a>
-            </li>
-        </ul>
+    <!-- Statistics Dashboard -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Total Expenses</h6>
+                            <h3 class="mb-0 fw-bold">{{ statistics.total or 0 }}</h3>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
+                            <i class="fas fa-chart-line fa-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="opacity-75">{{ format_currency(statistics.total_amount or 0, 'INR') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Pending Approval</h6>
+                            <h3 class="mb-0 fw-bold">{{ statistics.pending or 0 }}</h3>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
+                            <i class="fas fa-clock fa-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="opacity-75">{{ format_currency(statistics.pending_amount or 0, 'INR') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Approved</h6>
+                            <h3 class="mb-0 fw-bold">{{ statistics.approved or 0 }}</h3>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
+                            <i class="fas fa-check-circle fa-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="opacity-75">{{ format_currency(statistics.approved_amount or 0, 'INR') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">This Month</h6>
+                            <h3 class="mb-0 fw-bold">{{ statistics.this_month or 0 }}</h3>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
+                            <i class="fas fa-calendar-alt fa-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="opacity-75">{{ format_currency(statistics.this_month_amount or 0, 'INR') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>ID</th>
-                        <th>Employee</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for expense in expenses %}
-                    <tr>
-                        <td>#{{ expense.report_id }}</td>
-                        <td>{{ expense.employee_name }}</td>
-                        <td>{{ expense.report_date.strftime('%d %b %Y') }}</td>
-                        <td>{{ format_currency(expense.total_amount) }}</td>
-                        <td>
-                            <span class="badge bg-{{ {'submitted': 'warning', 'approved': 'success', 'paid': 'info', 'rejected': 'danger'}[expense.status] }}-subtle text-{{ {'submitted': 'warning', 'approved': 'success', 'paid': 'info', 'rejected': 'danger'}[expense.status] }}">
-                                {{ expense.status|capitalize }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="#" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
-                            {% if expense.status == 'submitted' %}
-                            <a href="/approve_expense/{{ expense.report_id }}" class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i></a>
-                            <a href="#" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></a>
-                            {% elif expense.status == 'approved' %}
-                            <a href="/mark_expense_paid/{{ expense.report_id }}" class="btn btn-sm btn-outline-info"><i class="fas fa-money-bill-wave"></i></a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- Search and Filter Section -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" id="expenseSearch" 
+                               placeholder="Search expenses..." aria-label="Search expenses">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="approved">Approved</option>
+                        <option value="paid">Paid</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="employeeFilter">
+                        <option value="">All Employees</option>
+                        {% for employee in employees %}
+                        <option value="{{ employee.id }}">{{ employee.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="travel">Travel</option>
+                        <option value="meals">Meals</option>
+                        <option value="accommodation">Accommodation</option>
+                        <option value="transport">Transport</option>
+                        <option value="supplies">Supplies</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                        <i class="fas fa-times me-2"></i>Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expenses Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fas fa-table me-2 text-primary"></i>Expense Reports
+                </h6>
+                <div class="d-flex gap-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="selectAll">
+                        <label class="form-check-label text-muted" for="selectAll">Select All</label>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-2"></i>Bulk Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="bulkApprove()">
+                                <i class="fas fa-check text-success me-2"></i>Approve Selected
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="bulkReject()">
+                                <i class="fas fa-times text-danger me-2"></i>Reject Selected  
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="bulkPay()">
+                                <i class="fas fa-money-bill-wave text-info me-2"></i>Mark as Paid
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="bulkDelete()">
+                                <i class="fas fa-trash me-2"></i>Delete Selected
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="expensesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0 ps-4">
+                                <input type="checkbox" class="form-check-input" id="masterCheckbox">
+                            </th>
+                            <th class="border-0 sortable" data-column="id">
+                                ID <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0 sortable" data-column="employee_name">
+                                Employee <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0 sortable" data-column="expense_date">
+                                Date <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0 sortable" data-column="category">
+                                Category <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0 sortable" data-column="amount">
+                                Amount <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0 sortable" data-column="status">
+                                Status <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th class="border-0">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in expenses %}
+                        <tr class="expense-row" data-expense-id="{{ expense.id }}" 
+                            data-employee-id="{{ expense.employee_id }}" 
+                            data-status="{{ expense.status }}"
+                            data-category="{{ expense.category }}">
+                            <td class="ps-4">
+                                <input type="checkbox" class="form-check-input expense-checkbox" 
+                                       value="{{ expense.id }}">
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">#EXP-{{ expense.id }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle bg-primary text-white me-2">
+                                        {{ expense.employee_name[:2].upper() if expense.employee_name else 'N/A' }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ expense.employee_name or 'Unknown' }}</div>
+                                        <small class="text-muted">{{ expense.expense_date.strftime('%d %b %Y') if expense.expense_date else '' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-semibold">{{ expense.expense_date.strftime('%d %b %Y') if expense.expense_date else 'N/A' }}</div>
+                                    <small class="text-muted">{{ expense.expense_date.strftime('%A') if expense.expense_date else '' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    <i class="fas fa-tag me-1"></i>{{ expense.category.title() if expense.category else 'Other' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-success">{{ format_currency(expense.amount or 0, expense.currency or 'INR') }}</div>
+                                {% if expense.vendor_name %}
+                                <small class="text-muted">{{ expense.vendor_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set status_colors = {
+                                    'submitted': 'warning',
+                                    'approved': 'success', 
+                                    'paid': 'info',
+                                    'rejected': 'danger'
+                                } %}
+                                <span class="badge bg-{{ status_colors.get(expense.status, 'secondary') }}">
+                                    {% if expense.status == 'submitted' %}
+                                        <i class="fas fa-clock me-1"></i>Pending
+                                    {% elif expense.status == 'approved' %}
+                                        <i class="fas fa-check me-1"></i>Approved
+                                    {% elif expense.status == 'paid' %}
+                                        <i class="fas fa-money-bill-wave me-1"></i>Paid
+                                    {% elif expense.status == 'rejected' %}
+                                        <i class="fas fa-times me-1"></i>Rejected
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-outline-primary btn-sm" 
+                                            onclick="viewExpense({{ expense.id }})" 
+                                            data-bs-toggle="tooltip" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if expense.status == 'submitted' %}
+                                    <button class="btn btn-outline-success btn-sm" 
+                                            onclick="approveExpense({{ expense.id }})"
+                                            data-bs-toggle="tooltip" title="Approve">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="rejectExpense({{ expense.id }})"
+                                            data-bs-toggle="tooltip" title="Reject">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% elif expense.status == 'approved' %}
+                                    <button class="btn btn-outline-info btn-sm" 
+                                            onclick="markAsPaid({{ expense.id }})"
+                                            data-bs-toggle="tooltip" title="Mark as Paid">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-outline-secondary btn-sm" 
+                                            onclick="editExpense({{ expense.id }})"
+                                            data-bs-toggle="tooltip" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Expandable Row for Details -->
+                        <tr class="expense-details d-none" id="details-{{ expense.id }}">
+                            <td colspan="8" class="bg-light">
+                                <div class="p-4">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6 class="fw-semibold mb-3">Expense Details</h6>
+                                            <table class="table table-sm">
+                                                <tr><td><strong>Description:</strong></td><td>{{ expense.description or 'No description' }}</td></tr>
+                                                <tr><td><strong>Vendor:</strong></td><td>{{ expense.vendor_name or 'Not specified' }}</td></tr>
+                                                <tr><td><strong>Project:</strong></td><td>{{ expense.project_name or 'General' }}</td></tr>
+                                                <tr><td><strong>Currency:</strong></td><td>{{ expense.currency or 'INR' }}</td></tr>
+                                            </table>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="fw-semibold mb-3">Approval Information</h6>
+                                            <table class="table table-sm">
+                                                <tr><td><strong>Status:</strong></td><td>{{ expense.status.title() if expense.status else 'Submitted' }}</td></tr>
+                                                {% if expense.approved_by_name %}
+                                                <tr><td><strong>Approved By:</strong></td><td>{{ expense.approved_by_name }}</td></tr>
+                                                <tr><td><strong>Approval Date:</strong></td><td>{{ expense.approved_date.strftime('%d %b %Y, %I:%M %p') if expense.approved_date else 'N/A' }}</td></tr>
+                                                {% endif %}
+                                                {% if expense.rejection_reason %}
+                                                <tr><td><strong>Rejection Reason:</strong></td><td>{{ expense.rejection_reason }}</td></tr>
+                                                {% endif %}
+                                                <tr><td><strong>Created:</strong></td><td>{{ expense.created_date.strftime('%d %b %Y, %I:%M %p') if expense.created_date else 'N/A' }}</td></tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p class="mb-0">No expenses found. Add your first expense to get started.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Record count display -->
+                <div class="record-count text-muted small mt-2 px-3">
+                    Showing {{ expenses|length }} expenses
+                </div>
+            </div>
+        </div>>
+        
+        <!-- Pagination Footer -->
+        <div class="card-footer bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted">Showing <span id="recordCount">{{ expenses|length }}</span> entries</span>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-primary btn-sm">1</button>
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Add Expense Modal -->
 <div class="modal fade" id="addExpenseModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add New Expense</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-semibold">
+                    <i class="fas fa-plus me-2"></i>Add New Expense
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form action="/add_expense" method="post">
+            <div class="modal-body p-4">
+                <form action="/add_expense" method="post" enctype="multipart/form-data" id="addExpenseForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Employee *</label>
+                                <select name="employee_id" class="form-select" required>
+                                    <option value="">Select employee</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Expense Date *</label>
+                                <input type="date" name="expense_date" class="form-control" 
+                                       value="{{ current_date.strftime('%Y-%m-%d') if current_date else '' }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Category *</label>
+                                <select name="category" class="form-select" required>
+                                    <option value="">Select category</option>
+                                    <option value="travel">Travel</option>
+                                    <option value="meals">Meals & Entertainment</option>
+                                    <option value="accommodation">Accommodation</option>
+                                    <option value="transport">Transport</option>
+                                    <option value="supplies">Office Supplies</option>
+                                    <option value="marketing">Marketing</option>
+                                    <option value="training">Training</option>
+                                    <option value="equipment">Equipment</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Vendor/Merchant</label>
+                                <input type="text" name="vendor_name" class="form-control" 
+                                       placeholder="Enter vendor name">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Amount *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" step="0.01" name="amount" class="form-control" 
+                                           placeholder="0.00" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Currency</label>
+                                <select name="currency" class="form-select">
+                                    <option value="INR" selected>INR - Indian Rupee (₹)</option>
+                                    <option value="USD">USD - US Dollar ($)</option>
+                                    <option value="EUR">EUR - Euro (€)</option>
+                                    <option value="GBP">GBP - British Pound (£)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Employee</label>
-                        <select name="employee_id" class="form-select">
-                            {% for emp in employees %}
-                            <option value="{{ emp.employee_id }}">{{ emp.name }}</option>
+                        <label class="form-label fw-semibold">Project (Optional)</label>
+                        <select name="project_id" class="form-select">
+                            <option value="">Select project (optional)</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" class="form-control" rows="3" 
+                                  placeholder="Provide details about the expense..."></textarea>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Amount</label>
-                        <input type="number" step="0.01" name="total_amount" class="form-control" required>
+                        <label class="form-label fw-semibold">Receipt Upload</label>
+                        <input type="file" name="receipt" class="form-control" 
+                               accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                        <div class="form-text">Upload receipt image or document (Max 5MB)</div>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Submit Expense</button>
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Submit Expense
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Edit Expense Modal -->
+<div class="modal fade" id="editExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title fw-semibold">
+                    <i class="fas fa-edit me-2"></i>Edit Expense
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="/update_expense" method="post" id="editExpenseForm">
+                    <input type="hidden" name="expense_id" id="edit_expense_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Status *</label>
+                                <select name="status" id="edit_status" class="form-select" required>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" step="0.01" name="amount" id="edit_amount" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Rejection Reason (if rejected)</label>
+                        <textarea name="rejection_reason" id="edit_rejection_reason" class="form-control" rows="3" 
+                                  placeholder="Specify reason for rejection..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Notes</label>
+                        <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-2"></i>Update Expense
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Expense Modal -->
+<div class="modal fade" id="viewExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-semibold">
+                    <i class="fas fa-receipt me-2"></i>Expense Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="expenseDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Modal -->
+<div class="modal fade" id="bulkActionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkActionTitle">Bulk Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="bulkActionMessage">Are you sure you want to perform this action?</p>
+                <div class="mb-3 d-none" id="rejectionReasonGroup">
+                    <label class="form-label">Rejection Reason</label>
+                    <textarea class="form-control" id="bulkRejectionReason" rows="3" 
+                              placeholder="Enter reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmBulkAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Custom Styles for Enhanced UI */
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.sortable i {
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.sortable:hover i {
+    opacity: 1;
+}
+
+.expense-row {
+    transition: all 0.3s ease;
+}
+
+.expense-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #e0e6ed;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.25);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+.table th {
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.modal-header {
+    border: none;
+    padding: 1.5rem;
+}
+
+.modal-body {
+    border: none;
+}
+
+/* Loading animation */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 10px;
+    }
+}
+</style>
+
+<script>
+// JavaScript for Enhanced Expense Management
+
+// Global variables
+let expenses = {{ expenses | tojson }};
+let currentSort = { column: null, direction: 'asc' };
+let selectedExpenses = [];
+
+// DOM Content Loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeExpenseManagement();
+    setupEventListeners();
+    initializeTooltips();
+    updateRecordCount();
+});
+
+// Initialize expense management functionality
+function initializeExpenseManagement() {
+    setupSearch();
+    setupFilters();
+    setupSorting();
+    setupCheckboxes();
+    calculateStatistics();
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Search functionality
+    document.getElementById('expenseSearch').addEventListener('input', handleSearch);
+    
+    // Filter dropdowns
+    document.getElementById('statusFilter').addEventListener('change', handleFilter);
+    document.getElementById('employeeFilter').addEventListener('change', handleFilter);
+    document.getElementById('categoryFilter').addEventListener('change', handleFilter);
+    
+    // Form submissions
+    const addForm = document.getElementById('addExpenseForm');
+    if (addForm) {
+        addForm.addEventListener('submit', handleAddExpense);
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+}
+
+// Setup checkbox functionality
+function setupCheckboxes() {
+    // Handle individual expense checkboxes
+    document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const expenseId = parseInt(this.value);
+            if (this.checked) {
+                if (!selectedExpenses.includes(expenseId)) {
+                    selectedExpenses.push(expenseId);
+                }
+            } else {
+                const index = selectedExpenses.indexOf(expenseId);
+                if (index > -1) {
+                    selectedExpenses.splice(index, 1);
+                }
+            }
+            updateSelectAllCheckboxes();
+            updateBulkActionsVisibility();
+        });
+    });
+
+    // Handle select all checkbox (switch)
+    const selectAllSwitch = document.getElementById('selectAll');
+    if (selectAllSwitch) {
+        selectAllSwitch.addEventListener('change', function() {
+            const isChecked = this.checked;
+            const visibleCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox');
+            
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const expenseId = parseInt(checkbox.value);
+                
+                if (isChecked) {
+                    if (!selectedExpenses.includes(expenseId)) {
+                        selectedExpenses.push(expenseId);
+                    }
+                } else {
+                    const index = selectedExpenses.indexOf(expenseId);
+                    if (index > -1) {
+                        selectedExpenses.splice(index, 1);
+                    }
+                }
+            });
+            
+            updateMasterCheckbox();
+            updateBulkActionsVisibility();
+        });
+    }
+
+    // Handle master checkbox in table header
+    const masterCheckbox = document.getElementById('masterCheckbox');
+    if (masterCheckbox) {
+        masterCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            const visibleCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox');
+            
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const expenseId = parseInt(checkbox.value);
+                
+                if (isChecked) {
+                    if (!selectedExpenses.includes(expenseId)) {
+                        selectedExpenses.push(expenseId);
+                    }
+                } else {
+                    const index = selectedExpenses.indexOf(expenseId);
+                    if (index > -1) {
+                        selectedExpenses.splice(index, 1);
+                    }
+                }
+            });
+            
+            updateSelectAllSwitch();
+            updateBulkActionsVisibility();
+        });
+    }
+}
+
+// Update select all switch based on individual selections
+function updateSelectAllSwitch() {
+    const selectAllSwitch = document.getElementById('selectAll');
+    const visibleCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox:checked');
+    
+    if (selectAllSwitch) {
+        if (visibleCheckboxes.length === 0) {
+            selectAllSwitch.checked = false;
+            selectAllSwitch.indeterminate = false;
+        } else if (checkedCheckboxes.length === visibleCheckboxes.length) {
+            selectAllSwitch.checked = true;
+            selectAllSwitch.indeterminate = false;
+        } else if (checkedCheckboxes.length > 0) {
+            selectAllSwitch.checked = false;
+            selectAllSwitch.indeterminate = true;
+        } else {
+            selectAllSwitch.checked = false;
+            selectAllSwitch.indeterminate = false;
+        }
+    }
+}
+
+// Update master checkbox based on individual selections
+function updateMasterCheckbox() {
+    const masterCheckbox = document.getElementById('masterCheckbox');
+    const visibleCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.expense-row:not([style*="display: none"]) .expense-checkbox:checked');
+    
+    if (masterCheckbox) {
+        if (visibleCheckboxes.length === 0) {
+            masterCheckbox.checked = false;
+            masterCheckbox.indeterminate = false;
+        } else if (checkedCheckboxes.length === visibleCheckboxes.length) {
+            masterCheckbox.checked = true;
+            masterCheckbox.indeterminate = false;
+        } else if (checkedCheckboxes.length > 0) {
+            masterCheckbox.checked = false;
+            masterCheckbox.indeterminate = true;
+        } else {
+            masterCheckbox.checked = false;
+            masterCheckbox.indeterminate = false;
+        }
+    }
+}
+
+// Update both checkboxes
+function updateSelectAllCheckboxes() {
+    updateSelectAllSwitch();
+    updateMasterCheckbox();
+}
+
+// Show/hide bulk actions based on selection
+function updateBulkActionsVisibility() {
+    const bulkActionsButton = document.querySelector('[data-bs-toggle="dropdown"]:has(.fas.fa-cog)');
+    const selectedCount = selectedExpenses.length;
+    
+    if (bulkActionsButton) {
+        if (selectedCount > 0) {
+            bulkActionsButton.innerHTML = `<i class="fas fa-cog me-2"></i>Bulk Actions (${selectedCount})`;
+            bulkActionsButton.classList.remove('btn-outline-secondary');
+            bulkActionsButton.classList.add('btn-primary');
+        } else {
+            bulkActionsButton.innerHTML = '<i class="fas fa-cog me-2"></i>Bulk Actions';
+            bulkActionsButton.classList.remove('btn-primary');
+            bulkActionsButton.classList.add('btn-outline-secondary');
+        }
+    }
+}
+
+// Setup search functionality
+function setupSearch() {
+    // Search is already set up in setupEventListeners, so this can be empty
+    // or we can add additional search-specific setup here if needed
+}
+
+// Setup filter functionality  
+function setupFilters() {
+    // Filter event listeners are already set up in setupEventListeners
+    // This function can be used for additional filter setup if needed
+}
+
+// Calculate and update statistics
+function calculateStatistics() {
+    // Statistics are already calculated server-side and displayed
+    // This function can be used for client-side statistics updates if needed
+}
+
+// Update record count display
+function updateRecordCount() {
+    const visibleRows = document.querySelectorAll('.expense-row:not([style*="display: none"])');
+    const totalRows = document.querySelectorAll('.expense-row');
+    const recordCountElement = document.querySelector('.record-count');
+    
+    if (recordCountElement) {
+        if (visibleRows.length === totalRows.length) {
+            recordCountElement.textContent = `Showing ${visibleRows.length} expenses`;
+        } else {
+            recordCountElement.textContent = `Showing ${visibleRows.length} of ${totalRows.length} expenses`;
+        }
+    }
+    
+    // Update the table info area if it doesn't exist, create it
+    if (!recordCountElement) {
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'record-count text-muted small mt-2';
+            if (visibleRows.length === totalRows.length) {
+                infoDiv.textContent = `Showing ${visibleRows.length} expenses`;
+            } else {
+                infoDiv.textContent = `Showing ${visibleRows.length} of ${totalRows.length} expenses`;
+            }
+            tableContainer.appendChild(infoDiv);
+        }
+    }
+}
+
+// Initialize tooltips
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// Search functionality
+function handleSearch() {
+    const searchTerm = document.getElementById('expenseSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('.expense-row');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const shouldShow = text.includes(searchTerm);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    
+    updateRecordCount();
+    updateSelectAllCheckboxes();
+}
+
+// Filter functionality
+function handleFilter() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const employeeFilter = document.getElementById('employeeFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const rows = document.querySelectorAll('.expense-row');
+    
+    rows.forEach(row => {
+        let shouldShow = true;
+        
+        if (statusFilter && row.dataset.status !== statusFilter) {
+            shouldShow = false;
+        }
+        
+        if (employeeFilter && row.dataset.employeeId !== employeeFilter) {
+            shouldShow = false;
+        }
+        
+        if (categoryFilter && row.dataset.category !== categoryFilter) {
+            shouldShow = false;
+        }
+        
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    
+    updateRecordCount();
+    updateSelectAllCheckboxes();
+}
+
+// Clear all filters
+function clearFilters() {
+    document.getElementById('expenseSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('employeeFilter').value = '';
+    document.getElementById('categoryFilter').value = '';
+    
+    document.querySelectorAll('.expense-row').forEach(row => {
+        row.style.display = '';
+    });
+    
+    updateRecordCount();
+    updateSelectAllCheckboxes();
+}
+
+// Sorting functionality
+function setupSorting() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.dataset.column;
+            const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+            
+            sortTable(column, direction);
+            updateSortIcons(column, direction);
+            
+            currentSort = { column, direction };
+        });
+    });
+}
+
+// Sort table function
+function sortTable(column, direction) {
+    const tbody = document.querySelector('#expensesTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('.expense-row'));
+    
+    rows.sort((a, b) => {
+        let aValue = a.querySelector(`[data-sort-value="${column}"]`)?.textContent || 
+                     a.cells[getColumnIndex(column)]?.textContent || '';
+        let bValue = b.querySelector(`[data-sort-value="${column}"]`)?.textContent || 
+                     b.cells[getColumnIndex(column)]?.textContent || '';
+        
+        // Handle numeric values
+        if (column === 'amount' || column === 'id') {
+            aValue = parseFloat(aValue.replace(/[^0-9.-]+/g, '')) || 0;
+            bValue = parseFloat(bValue.replace(/[^0-9.-]+/g, '')) || 0;
+        }
+        
+        // Handle dates
+        if (column === 'expense_date') {
+            aValue = new Date(aValue);
+            bValue = new Date(bValue);
+        }
+        
+        if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    // Reorder rows in the table
+    rows.forEach(row => {
+        tbody.appendChild(row);
+        const detailsRow = document.getElementById(`details-${row.dataset.expenseId}`);
+        if (detailsRow) {
+            tbody.appendChild(detailsRow);
+        }
+    });
+}
+
+// Get column index for sorting
+function getColumnIndex(column) {
+    const columnMap = {
+        'id': 1,
+        'employee_name': 2,
+        'expense_date': 3,
+        'category': 4,
+        'amount': 5,
+        'status': 6
+    };
+    return columnMap[column] || 0;
+}
+
+// Update sort icons
+function updateSortIcons(activeColumn, direction) {
+    document.querySelectorAll('.sortable i').forEach(icon => {
+        icon.className = 'fas fa-sort ms-1';
+    });
+    
+    const activeIcon = document.querySelector(`[data-column="${activeColumn}"] i`);
+    if (activeIcon) {
+        activeIcon.className = `fas fa-sort-${direction === 'asc' ? 'up' : 'down'} ms-1`;
+    }
+}
+
+// Individual expense actions
+function viewExpense(expenseId) {
+    // Toggle expandable row
+    const detailsRow = document.getElementById(`details-${expenseId}`);
+    if (detailsRow) {
+        detailsRow.classList.toggle('d-none');
+    }
+}
+
+function editExpense(expenseId) {
+    // Find expense data and populate edit modal
+    fetch(`/api/expense/${expenseId}`)
+        .then(response => response.json())
+        .then(expense => {
+            if (expense.error) {
+                showNotification(expense.error, 'error');
+                return;
+            }
+            
+            document.getElementById('edit_expense_id').value = expense.id;
+            document.getElementById('edit_status').value = expense.status;
+            document.getElementById('edit_amount').value = expense.amount;
+            document.getElementById('edit_rejection_reason').value = expense.rejection_reason || '';
+            
+            new bootstrap.Modal(document.getElementById('editExpenseModal')).show();
+        })
+        .catch(error => {
+            showNotification('Error loading expense details', 'error');
+            console.error('Error:', error);
+        });
+}
+
+function approveExpense(expenseId) {
+    if (confirm('Are you sure you want to approve this expense?')) {
+        updateExpenseStatus(expenseId, 'approved');
+    }
+}
+
+function rejectExpense(expenseId) {
+    const reason = prompt('Enter rejection reason (optional):');
+    updateExpenseStatus(expenseId, 'rejected', reason);
+}
+
+function markAsPaid(expenseId) {
+    if (confirm('Mark this expense as paid?')) {
+        updateExpenseStatus(expenseId, 'paid');
+    }
+}
+
+// Update expense status
+function updateExpenseStatus(expenseId, status, rejectionReason = '') {
+    const formData = new FormData();
+    formData.append('expense_id', expenseId);
+    formData.append('status', status);
+    if (rejectionReason) {
+        formData.append('rejection_reason', rejectionReason);
+    }
+    
+    fetch('/update_expense_status', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`Expense ${status} successfully!`, 'success');
+            location.reload();
+        } else {
+            showNotification(data.error || 'Error updating expense', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error updating expense status', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Bulk actions
+function bulkApprove() {
+    if (selectedExpenses.length === 0) {
+        showNotification('Please select expenses to approve', 'warning');
+        return;
+    }
+    
+    performBulkAction('approve', selectedExpenses);
+}
+
+function bulkReject() {
+    if (selectedExpenses.length === 0) {
+        showNotification('Please select expenses to reject', 'warning');
+        return;
+    }
+    
+    showBulkActionModal('reject', 'Reject Selected Expenses', 
+        `Are you sure you want to reject ${selectedExpenses.length} selected expense(s)?`, true);
+}
+
+function bulkPay() {
+    if (selectedExpenses.length === 0) {
+        showNotification('Please select expenses to mark as paid', 'warning');
+        return;
+    }
+    
+    performBulkAction('pay', selectedExpenses);
+}
+
+function bulkDelete() {
+    if (selectedExpenses.length === 0) {
+        showNotification('Please select expenses to delete', 'warning');
+        return;
+    }
+    
+    showBulkActionModal('delete', 'Delete Selected Expenses', 
+        `Are you sure you want to delete ${selectedExpenses.length} selected expense(s)? This action cannot be undone.`, false);
+}
+
+// Show bulk action modal
+function showBulkActionModal(action, title, message, showRejectionReason) {
+    document.getElementById('bulkActionTitle').textContent = title;
+    document.getElementById('bulkActionMessage').textContent = message;
+    
+    const rejectionGroup = document.getElementById('rejectionReasonGroup');
+    if (showRejectionReason) {
+        rejectionGroup.classList.remove('d-none');
+    } else {
+        rejectionGroup.classList.add('d-none');
+    }
+    
+    const confirmButton = document.getElementById('confirmBulkAction');
+    confirmButton.onclick = function() {
+        const rejectionReason = showRejectionReason ? 
+            document.getElementById('bulkRejectionReason').value : '';
+        
+        performBulkAction(action, selectedExpenses, rejectionReason);
+        bootstrap.Modal.getInstance(document.getElementById('bulkActionModal')).hide();
+    };
+    
+    new bootstrap.Modal(document.getElementById('bulkActionModal')).show();
+}
+
+// Perform bulk action
+function performBulkAction(action, expenseIds, rejectionReason = '') {
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('expense_ids', JSON.stringify(expenseIds));
+    if (rejectionReason) {
+        formData.append('rejection_reason', rejectionReason);
+    }
+    
+    fetch('/expenses/bulk', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message || `Bulk ${action} completed successfully!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.error || `Error performing bulk ${action}`, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification(`Error performing bulk ${action}`, 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Handle form submission
+function handleAddExpense(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    // Add loading state
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+    submitButton.disabled = true;
+    
+    fetch('/add_expense', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Expense submitted successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addExpenseModal')).hide();
+            form.reset();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.error || 'Error submitting expense', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error submitting expense', 'error');
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+    });
+}
+
+// Export expenses
+function exportExpenses() {
+    const filters = {
+        search: document.getElementById('expenseSearch').value,
+        status: document.getElementById('statusFilter').value,
+        employee: document.getElementById('employeeFilter').value,
+        category: document.getElementById('categoryFilter').value
+    };
+    
+    const params = new URLSearchParams(filters);
+    window.open(`/expenses/export?${params.toString()}`, '_blank');
+}
+
+// Keyboard shortcuts
+function handleKeyboardShortcuts(event) {
+    // Ctrl+F for search
+    if (event.ctrlKey && event.key === 'f') {
+        event.preventDefault();
+        document.getElementById('expenseSearch').focus();
+    }
+    
+    // Escape to clear search
+    if (event.key === 'Escape') {
+        clearFilters();
+    }
+}
+
+// Utility Functions  
+function showNotification(message, type = 'info') {
+    // Create toast notification
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    
+    const toastId = 'toast-' + Date.now();
+    const bgClass = {
+        'success': 'bg-success',
+        'error': 'bg-danger', 
+        'warning': 'bg-warning',
+        'info': 'bg-info'
+    }[type] || 'bg-info';
+    
+    const iconClass = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-triangle',
+        'warning': 'fa-exclamation-circle',
+        'info': 'fa-info-circle'
+    }[type] || 'fa-info-circle';
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.id = toastId;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas ${iconClass} me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    // Remove toast after it's hidden
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+
 {% endblock %}

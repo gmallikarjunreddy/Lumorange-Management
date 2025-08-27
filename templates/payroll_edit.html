@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Payroll Run - {{ payroll_run.run_name }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ url_for('payroll') }}">Payroll Management</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('payroll_details', payroll_id=payroll_run.id) }}">{{ payroll_run.run_name }}</a></li>
+    <li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block page_title %}Edit Payroll Run{% endblock %}
+
+{% block page_subtitle %}
+    <small class="text-muted">Modify payroll run details (Draft status only)</small>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Edit Payroll Run
+                    </h5>
+                </div>
+                <form action="{{ url_for('edit_payroll_run', payroll_id=payroll_run.id) }}" method="POST" data-validate="true" novalidate>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="runName" class="form-label">
+                                        Run Name 
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control form-control-lg" 
+                                           id="runName" 
+                                           name="runName" 
+                                           value="{{ payroll_run.run_name }}"
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Please provide a name for this payroll run.
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label for="payPeriodStart" class="form-label">
+                                        Pay Period Start 
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" 
+                                           class="form-control form-control-lg" 
+                                           id="payPeriodStart" 
+                                           name="payPeriodStart" 
+                                           value="{{ payroll_run.pay_period_start.strftime('%Y-%m-%d') }}"
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Please select the pay period start date.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="payDate" class="form-label">
+                                        Payment Date 
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" 
+                                           class="form-control form-control-lg" 
+                                           id="payDate" 
+                                           name="payDate" 
+                                           value="{{ payroll_run.pay_date.strftime('%Y-%m-%d') }}"
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Please select a payment date.
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label for="payPeriodEnd" class="form-label">
+                                        Pay Period End 
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" 
+                                           class="form-control form-control-lg" 
+                                           id="payPeriodEnd" 
+                                           name="payPeriodEnd" 
+                                           value="{{ payroll_run.pay_period_end.strftime('%Y-%m-%d') }}"
+                                           required>
+                                    <div class="invalid-feedback">
+                                        Please select the pay period end date.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Notes & Comments</label>
+                            <textarea class="form-control" 
+                                      id="notes" 
+                                      name="notes" 
+                                      rows="4"
+                                      placeholder="Add any special notes about this payroll run...">{{ payroll_run.notes or '' }}</textarea>
+                            <div class="form-text">
+                                Optional: Add any special instructions or notes
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Changes to the payroll run will not affect already calculated employee entries. 
+                            Employee salary calculations are based on their salary records at the time of payroll creation.
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-light">
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('payroll_details', payroll_id=payroll_run.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-warning" data-loading="true">
+                                <i class="fas fa-save me-2"></i>Update Payroll Run
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Date validation
+        const startDate = document.getElementById('payPeriodStart');
+        const endDate = document.getElementById('payPeriodEnd');
+        const paymentDate = document.getElementById('payDate');
+        
+        function validateDates() {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            const payment = new Date(paymentDate.value);
+            
+            // End date should be after start date
+            if (start && end && end <= start) {
+                endDate.setCustomValidity('End date must be after start date');
+                endDate.classList.add('is-invalid');
+            } else {
+                endDate.setCustomValidity('');
+                endDate.classList.remove('is-invalid');
+            }
+            
+            // Payment date should be after end date
+            if (end && payment && payment <= end) {
+                paymentDate.setCustomValidity('Payment date should be after pay period ends');
+                paymentDate.classList.add('is-invalid');
+            } else {
+                paymentDate.setCustomValidity('');
+                paymentDate.classList.remove('is-invalid');
+            }
+        }
+        
+        startDate.addEventListener('change', validateDates);
+        endDate.addEventListener('change', validateDates);
+        paymentDate.addEventListener('change', validateDates);
+        
+        // Initial validation
+        validateDates();
+    });
+</script>
+{% endblock %}
+{% endblock %}

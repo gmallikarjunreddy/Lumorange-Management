@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Details - {{ payroll_run.run_name }}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ url_for('payroll') }}">Payroll Management</a></li>
+    <li class="breadcrumb-item active">{{ payroll_run.run_name }}</li>
+{% endblock %}
+
+{% block page_title %}{{ payroll_run.run_name }}{% endblock %}
+
+{% block page_subtitle %}
+    <small class="text-muted">
+        Pay Period: {{ payroll_run.pay_period_start.strftime('%d %b') }} - {{ payroll_run.pay_period_end.strftime('%d %b %Y') }} | 
+        Payment Date: {{ payroll_run.pay_date.strftime('%d %b %Y') }}
+    </small>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('payroll') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Payroll
+            </a>
+            {% if payroll_run.status == 'draft' %}
+            <a href="{{ url_for('edit_payroll_run', payroll_id=payroll_run.id) }}" class="btn btn-outline-warning">
+                <i class="fas fa-edit me-2"></i>Edit
+            </a>
+            {% endif %}
+            <a href="{{ url_for('download_payroll_report', payroll_id=payroll_run.id) }}" class="btn btn-outline-info">
+                <i class="fas fa-download me-2"></i>Download
+            </a>
+        </div>
+        
+        <div class="d-flex align-items-center">
+            <!-- Status Badge -->
+            {% if payroll_run.status == 'draft' %}
+                <span class="badge bg-warning text-dark fs-6 me-3">
+                    <i class="fas fa-edit me-1"></i>Draft
+                </span>
+            {% elif payroll_run.status == 'processing' %}
+                <span class="badge bg-info fs-6 me-3">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Processing
+                </span>
+            {% elif payroll_run.status == 'completed' %}
+                <span class="badge bg-success fs-6 me-3">
+                    <i class="fas fa-check me-1"></i>Completed
+                </span>
+            {% elif payroll_run.status == 'cancelled' %}
+                <span class="badge bg-danger fs-6 me-3">
+                    <i class="fas fa-times me-1"></i>Cancelled
+                </span>
+            {% endif %}
+            
+            <!-- Delete Button (Only for Draft) -->
+            {% if payroll_run.status == 'draft' %}
+            <form method="POST" action="{{ url_for('delete_payroll_run', payroll_id=payroll_run.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger" 
+                        data-confirm="Are you sure you want to delete this payroll run? This action cannot be undone."
+                        data-bs-toggle="tooltip" 
+                        title="Delete this payroll run permanently">
+                    <i class="fas fa-trash me-2"></i>Delete
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payroll Summary -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Payroll Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Run Name</label>
+                                <div class="fw-bold">{{ payroll_run.run_name }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Pay Period</label>
+                                <div class="fw-bold">
+                                    {{ payroll_run.pay_period_start.strftime('%d %b %Y') }} - 
+                                    {{ payroll_run.pay_period_end.strftime('%d %b %Y') }}
+                                </div>
+                                <small class="text-muted">
+                                    {% set period_days = (payroll_run.pay_period_end - payroll_run.pay_period_start).days + 1 %}
+                                    ({{ period_days }} days)
+                                </small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Payment Date</label>
+                                <div class="fw-bold">{{ payroll_run.pay_date.strftime('%d %b %Y') }}</div>
+                                <small class="text-muted">{{ payroll_run.pay_date.strftime('%A') }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Processed By</label>
+                                <div class="fw-bold">{{ payroll_run.processed_by or 'Admin' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Created Date</label>
+                                <div class="fw-bold">{{ payroll_run.created_date.strftime('%d %b %Y %I:%M %p') }}</div>
+                            </div>
+                            {% if payroll_run.notes %}
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Notes</label>
+                                <div class="fw-bold">{{ payroll_run.notes }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Financial Summary -->
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>Financial Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Employees:</span>
+                            <span class="badge bg-primary fs-6">{{ payroll_run.total_employees or 0 }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Gross Pay:</span>
+                            <span class="fw-bold fs-5">₹{{ "{:,.2f}".format(payroll_run.total_gross_pay or 0) }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Deductions:</span>
+                            <span class="text-danger fw-bold">₹{{ "{:,.2f}".format(payroll_run.total_deductions or 0) }}</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Net Pay:</span>
+                            <span class="fw-bold fs-4 text-success">₹{{ "{:,.2f}".format(payroll_run.total_net_pay or 0) }}</span>
+                        </div>
+                    </div>
+                    {% if payroll_run.total_employees and payroll_run.total_employees > 0 %}
+                    <small class="text-muted d-block mt-2">
+                        Average: ₹{{ "{:,.0f}".format((payroll_run.total_net_pay or 0) / payroll_run.total_employees) }} per employee
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Details -->
+    <div class="card">
+        <div class="card-header bg-white border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2 text-primary"></i>
+                    Employee Payroll Details
+                    <span class="badge bg-light text-dark ms-2">{{ payroll_entries|length }}</span>
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary">
+                        <i class="fas fa-print me-1"></i>Print
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-excel me-1"></i>Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th class="text-end">Basic Salary</th>
+                            <th class="text-end">Allowances</th>
+                            <th class="text-end">Gross Pay</th>
+                            <th class="text-end">Deductions</th>
+                            <th class="text-end">Net Pay</th>
+                            <th class="text-center pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if payroll_entries %}
+                            {% for entry in payroll_entries %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div>
+                                        <div class="fw-bold">{{ entry.full_name or entry.employee_name }}</div>
+                                        {% if entry.emp_code %}
+                                        <small class="text-muted">ID: {{ entry.emp_code }}</small>
+                                        {% endif %}
+                                        {% if entry.email %}
+                                        <div>
+                                            <small class="text-muted">{{ entry.email }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold">₹{{ "{:,.2f}".format(entry.basic_salary or 0) }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold">₹{{ "{:,.2f}".format(entry.allowances or 0) }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold">₹{{ "{:,.2f}".format(entry.gross_pay or 0) }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="text-danger fw-bold">₹{{ "{:,.2f}".format(entry.total_deductions or 0) }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="text-success fw-bold fs-6">₹{{ "{:,.2f}".format(entry.net_pay or 0) }}</span>
+                                </td>
+                                <td class="text-center pe-4">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info" 
+                                                data-bs-toggle="tooltip" 
+                                                title="View employee payslip">
+                                            <i class="fas fa-file-alt"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" 
+                                                data-bs-toggle="tooltip" 
+                                                title="Email payslip to employee">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h5>No Employee Data</h5>
+                                <p class="text-muted">No payroll entries found for this run.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if payroll_entries|length > 0 %}
+        <div class="card-footer bg-light">
+            <div class="row align-items-center text-muted small">
+                <div class="col">
+                    <i class="fas fa-info-circle me-1"></i>
+                    {{ payroll_entries|length }} employee{{ 's' if payroll_entries|length != 1 else '' }} processed
+                </div>
+                <div class="col-auto">
+                    Total Net: <strong>₹{{ "{:,.2f}".format(payroll_entries|sum(attribute='net_pay') or 0) }}</strong>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Status Change Actions -->
+    {% if payroll_run.status == 'draft' %}
+    <div class="card mt-4">
+        <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0">
+                <i class="fas fa-cog me-2"></i>Payroll Actions
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">This payroll run is currently in <strong>Draft</strong> status. You can:</p>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('update_payroll_status', payroll_id=payroll_run.id, new_status='processing') }}" 
+                   class="btn btn-info">
+                    <i class="fas fa-play me-2"></i>Start Processing
+                </a>
+                <a href="{{ url_for('update_payroll_status', payroll_id=payroll_run.id, new_status='completed') }}" 
+                   class="btn btn-success"
+                   data-confirm="Mark this payroll run as completed? This action should only be done after payments are processed.">
+                    <i class="fas fa-check me-2"></i>Mark as Completed
+                </a>
+                <a href="{{ url_for('update_payroll_status', payroll_id=payroll_run.id, new_status='cancelled') }}" 
+                   class="btn btn-outline-danger"
+                   data-confirm="Cancel this payroll run? This will mark it as cancelled but not delete the data.">
+                    <i class="fas fa-ban me-2"></i>Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

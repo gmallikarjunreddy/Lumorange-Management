@@ -1,8 +1,9 @@
 from flask import Flask, render_template
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
-from flask import request, redirect, url_for, flash, jsonify
+from flask import request, redirect, url_for, flash, jsonify, make_response
 from datetime import datetime, date
+import json
 
 app = Flask(__name__)
 app.secret_key = 'lumorange_secret_key'
@@ -1116,100 +1117,128 @@ def delete_salary(id):
     cur.close()
     return redirect(url_for('salaries'))
 
-# Payroll Reports routes
-@app.route('/payroll')
-def payroll():
-    cur = mysql.connection.cursor()
-    cur.execute("""SELECT pr.id, 
+@app.route('/update_salary', methods=['POST'])
+def update_salary():
+    try:
+        salary_id = request.form['salary_id']
+        employee_id = request.form['employee_id']
+        basic_salary = request.form['basic_salary']
+        allowances = request.form['allowances'] or 0
+        deductions = request.form['deductions'] or 0
+        effective_date = request.form['effective_date']
+        
+        if not salary_id or not employee_id or not basic_salary or not effective_date:
+            flash('All required fields must be filled!', 'danger')
+            return redirect(url_for('salaries'))
+        
+        cur = mysql.connection.cursor()
+        
+        # Update salary record
+        cur.execute("""
+            UPDATE salaries 
+            SET employee_id = %s, basic_salary = %s, allowances = %s, 
+                deductions = %s, effective_date = %s
+            WHERE id = %s
+        """, (employee_id, basic_salary, allowances, deductions, effective_date, salary_id))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash('Salary record updated successfully!', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error updating salary record: {e}', 'danger')
+        
+    return redirect(url_for('salaries'))
+
+# Salary API endpoints
+@app.route('/api/salary/<int:salary_id>')
+def get_salary_details(salary_id):
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT s.id, s.employee_id, s.basic_salary, s.allowances, s.deductions,
+                   (s.basic_salary + COALESCE(s.allowances, 0) - COALESCE(s.deductions, 0)) as net_salary,
+                   s.effective_date, s.end_date, s.currency, s.is_active, s.created_date,
                    COALESCE(CONCAT(e.first_name, ' ', e.last_name), e.name) as employee_name,
-                   pr.month, pr.year, pr.basic_salary, 
-                   COALESCE(pr.total_allowances, 0) as allowances,
-                   COALESCE(pr.total_deductions, 0) as deductions,
-                   COALESCE(pr.net_salary, pr.basic_salary) as net_salary, 
-                   pr.status 
-                   FROM payroll_reports pr 
-                   JOIN employees e ON pr.employee_id = e.id 
-                   ORDER BY pr.year DESC, pr.month DESC""")
-    payroll_reports = cur.fetchall()
-    
-    # Get employees for payroll generation
-    cur.execute("""SELECT id, COALESCE(CONCAT(first_name, ' ', last_name), name) as name 
-                   FROM employees WHERE status = 'active' ORDER BY first_name, last_name, name""")
-    employees = cur.fetchall()
-    
-    cur.close()
-    return render_template('payroll.html', payroll_reports=payroll_reports, employees=employees)
+                   e.email, COALESCE(d.name, 'Not Assigned') as department
+            FROM salaries s
+            JOIN employees e ON s.employee_id = e.id
+            LEFT JOIN departments d ON e.department_id = d.id
+            WHERE s.id = %s
+        """, (salary_id,))
+        salary = cur.fetchone()
+        cur.close()
+        
+        if salary:
+            # Convert date objects to strings for JSON serialization
+            if salary['effective_date']:
+                salary['effective_date_display'] = salary['effective_date'].strftime('%d %b %Y')
+                salary['effective_date'] = salary['effective_date'].strftime('%Y-%m-%d')  # ISO format for input
+            if salary['end_date']:
+                salary['end_date'] = salary['end_date'].strftime('%d %b %Y')
+            if salary['created_date']:
+                salary['created_date'] = salary['created_date'].strftime('%d %b %Y, %I:%M %p')
+            
+            return jsonify({'success': True, 'salary': salary})
+        else:
+            return jsonify({'success': False, 'error': 'Salary record not found'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/generate_payroll', methods=['POST'])
-def generate_payroll():
-    month = request.form['month']
-    year = request.form['year']
-    if not month or not year:
-        flash('Month and Year are required!', 'danger')
-        return redirect(url_for('payroll'))
-    
+@app.route('/salaries/export')
+def export_salaries():
     try:
         cur = mysql.connection.cursor()
-        # Get all employees with their latest salary
-        cur.execute("""SELECT e.id, e.name, 
-                       COALESCE(s.basic_salary, 0) as basic_salary,
+        cur.execute("""SELECT s.id, 
+                       COALESCE(CONCAT(e.first_name, ' ', e.last_name), e.name) as employee_name,
+                       s.basic_salary, 
                        COALESCE(s.allowances, 0) as allowances,
-                       COALESCE(s.deductions, 0) as deductions
-                       FROM employees e 
-                       LEFT JOIN salaries s ON e.id = s.employee_id 
-                       WHERE s.effective_date = (
-                           SELECT MAX(s2.effective_date) 
-                           FROM salaries s2 
-                           WHERE s2.employee_id = e.id 
-                           AND s2.effective_date <= LAST_DAY(STR_TO_DATE(CONCAT(%s, '-', %s), '%%Y-%%m'))
-                       )""", (year, month))
-        
-        employees = cur.fetchall()
-        generated_count = 0
-        
-        for emp in employees:
-            employee_id, name, basic_salary, allowances, deductions = emp
-            net_salary = basic_salary + allowances - deductions
-            
-            # Check if payroll already exists for this employee and month
-            cur.execute("SELECT id FROM payroll_reports WHERE employee_id = %s AND month = %s AND year = %s", 
-                       (employee_id, month, year))
-            existing = cur.fetchone()
-            
-            if not existing:
-                cur.execute("""INSERT INTO payroll_reports 
-                              (month, year, employee_id, basic_salary, allowances, deductions, net_salary, status) 
-                              VALUES (%s, %s, %s, %s, %s, %s, %s, 'draft')""", 
-                           (month, year, employee_id, basic_salary, allowances, deductions, net_salary))
-                generated_count += 1
-        
-        mysql.connection.commit()
+                       COALESCE(s.deductions, 0) as deductions,
+                       (s.basic_salary + COALESCE(s.allowances, 0) - COALESCE(s.deductions, 0)) as net_salary,
+                       s.effective_date, s.currency
+                       FROM salaries s 
+                       JOIN employees e ON s.employee_id = e.id 
+                       WHERE s.is_active = 1
+                       ORDER BY s.effective_date DESC""")
+        salaries = cur.fetchall()
         cur.close()
-        flash(f'Payroll generated for {generated_count} employees for {month}/{year}!', 'success')
+        
+        # Create CSV response
+        output = []
+        output.append(['ID', 'Employee', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Effective Date', 'Currency'])
+        
+        for salary in salaries:
+            row = [
+                f"SAL-{salary[0]}",
+                salary[1],
+                f"{salary[2]:.2f}",
+                f"{salary[3]:.2f}",
+                f"{salary[4]:.2f}",
+                f"{salary[5]:.2f}",
+                salary[6].strftime('%Y-%m-%d') if salary[6] else '',
+                salary[7] or 'INR'
+            ]
+            output.append(row)
+        
+        # Convert to CSV string
+        import io
+        import csv
+        si = io.StringIO()
+        cw = csv.writer(si)
+        cw.writerows(output)
+        
+        # Create response
+        response = make_response(si.getvalue())
+        response.headers["Content-Disposition"] = "attachment; filename=salary_records.csv"
+        response.headers["Content-type"] = "text/csv"
+        
+        return response
+        
     except Exception as e:
-        flash(f'Error generating payroll: {e}', 'danger')
-    
-    return redirect(url_for('payroll'))
-
-@app.route('/update_payroll_status/<int:id>/<status>')
-def update_payroll_status(id, status):
-    try:
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE payroll_reports SET status = %s WHERE id = %s", (status, id))
-        mysql.connection.commit()
-        cur.close()
-        flash(f'Payroll status updated to {status}!', 'success')
-    except Exception as e:
-        flash(f'Error updating payroll status: {e}', 'danger')
-    return redirect(url_for('payroll'))
-
-@app.route('/delete_payroll/<int:id>')
-def delete_payroll(id):
-    cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM payroll_reports WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cur.close()
-    return redirect(url_for('payroll'))
+        flash(f'Error exporting salary data: {e}', 'danger')
+        return redirect(url_for('salaries'))
 
 # Invoice routes
 @app.route('/invoices/<int:invoice_id>')
@@ -1248,88 +1277,194 @@ def invoice_details(invoice_id):
         flash(f"Error loading invoice details: {e}", 'danger')
         return redirect(url_for('invoices'))
 
+# Template context processor for format_currency
+@app.template_filter('format_currency')
+def format_currency_filter(amount, currency='INR'):
+    """Format currency with proper symbol"""
+    if not amount:
+        amount = 0
+    
+    symbols = {
+        'INR': '₹',
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'CAD': 'C$'
+    }
+    
+    symbol = symbols.get(currency, '₹')
+    return f"{symbol}{amount:,.2f}"
+
+@app.template_global()
+def format_currency(amount, currency='INR'):
+    """Global template function for formatting currency"""
+    return format_currency_filter(amount, currency)
+
 @app.route('/invoices')
 def invoices():
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get all invoices with detailed information
         cur.execute("""
             SELECT 
-                i.id as invoice_id, 
-                c.name as client_name, 
-                i.invoice_number, 
-                i.invoice_date, 
-                i.due_date, 
-                p.name as project_name, 
-                i.total_amount as total, 
-                i.status 
+                i.id,
+                i.invoice_number,
+                i.invoice_date,
+                i.due_date,
+                i.client_id,
+                i.project_id,
+                i.subtotal,
+                i.tax_rate,
+                i.tax_amount,
+                i.discount_amount,
+                i.total_amount,
+                i.currency,
+                i.status,
+                i.payment_method,
+                i.payment_date,
+                i.notes,
+                i.created_date,
+                i.updated_date,
+                c.name as client_name
             FROM invoices i 
             JOIN clients c ON i.client_id = c.id 
-            LEFT JOIN projects p ON i.project_id = p.id 
-            ORDER BY i.invoice_date DESC
+            ORDER BY i.created_date DESC
         """)
         invoices = cur.fetchall()
+        
+        # Get clients for filters
+        cur.execute("SELECT id, name FROM clients WHERE status = 'active' ORDER BY name")
+        clients = cur.fetchall()
+        
+        # Get projects for the add invoice modal
+        cur.execute("SELECT id, name, client_id FROM projects WHERE status != 'completed' ORDER BY name")
+        projects = cur.fetchall()
+        
+        # Calculate statistics
+        total_invoices = len(invoices)
+        paid_invoices = len([inv for inv in invoices if inv['status'] == 'paid'])
+        pending_invoices = len([inv for inv in invoices if inv['status'] in ['sent', 'pending']])
+        overdue_invoices = len([inv for inv in invoices if inv['status'] == 'overdue'])
+        
+        # Calculate financial statistics
+        total_revenue = sum(inv['total_amount'] or 0 for inv in invoices if inv['status'] == 'paid')
+        outstanding = sum(inv['total_amount'] or 0 for inv in invoices if inv['status'] in ['sent', 'pending', 'overdue'])
+        
+        # This month's revenue
+        from datetime import datetime, timedelta
+        current_month = datetime.now().replace(day=1)
+        this_month_revenue = sum(
+            inv['total_amount'] or 0 for inv in invoices 
+            if inv['status'] == 'paid' and inv['payment_date'] and inv['payment_date'] >= current_month
+        )
+        
+        statistics = {
+            'total': total_invoices,
+            'paid': paid_invoices,
+            'pending': pending_invoices,
+            'overdue': overdue_invoices,
+            'total_revenue': total_revenue,
+            'outstanding': outstanding,
+            'this_month': this_month_revenue
+        }
+        
+        # Add current date for template calculations
+        current_date = datetime.now().date()
+        
         cur.close()
-        return render_template('invoices.html', invoices=invoices)
+        return render_template('invoices.html', 
+                             invoices=invoices, 
+                             clients=clients,
+                             projects=projects,
+                             statistics=statistics,
+                             current_date=current_date)
     except Exception as e:
         flash(f"Error loading invoices: {e}", 'danger')
-        return render_template('invoices.html', invoices=[])
+        return render_template('invoices.html', 
+                             invoices=[], 
+                             clients=[],
+                             projects=[],
+                             statistics={'total': 0, 'paid': 0, 'pending': 0, 'overdue': 0, 'total_revenue': 0, 'outstanding': 0, 'this_month': 0},
+                             current_date=datetime.now().date())
 
 @app.route('/invoices/add', methods=['GET', 'POST'])
 def add_invoice():
     if request.method == 'POST':
-        client_id = request.form['client_id']
-        project_id = request.form['project_id'] if request.form['project_id'] else None
-        amount = request.form['amount']
-        tax_rate = request.form['tax_rate'] or 0
-        due_date = request.form['due_date']
-        notes = request.form['notes']
-        
-        if not client_id or not amount or not due_date:
-            flash('Client, Amount, and Due Date are required!', 'danger')
-            return redirect(url_for('invoices'))
-        
         try:
-            cur = mysql.connection.cursor()
+            # Get form data
+            client_id = request.form['client_id']
+            project_id = request.form['project_id'] if request.form['project_id'] else None
+            invoice_date = request.form['invoice_date']
+            due_date = request.form['due_date']
+            tax_rate = float(request.form['tax_rate'] or 0)
+            discount_amount = float(request.form.get('discount_amount', 0))
+            currency = request.form.get('currency', 'INR')
+            payment_method = request.form.get('payment_method', 'bank_transfer')
+            notes = request.form.get('notes', '')
+            terms_conditions = request.form.get('terms_conditions', 'Payment due within 30 days of invoice date.')
+            
+            if not client_id or not invoice_date or not due_date:
+                flash('Client, Invoice Date, and Due Date are required!', 'danger')
+                return redirect(url_for('invoices'))
+            
+            # Calculate subtotal from line items
+            descriptions = request.form.getlist('description[]')
+            quantities = request.form.getlist('quantity[]')
+            unit_prices = request.form.getlist('unit_price[]')
+            
+            subtotal_amount = 0
+            for i in range(len(descriptions)):
+                if descriptions[i] and quantities[i] and unit_prices[i]:
+                    qty = float(quantities[i] or 0)
+                    price = float(unit_prices[i] or 0)
+                    subtotal_amount += qty * price
+            
+            # Calculate amounts
+            tax_amount = (subtotal_amount - discount_amount) * (tax_rate / 100)
+            total_amount = subtotal_amount + tax_amount - discount_amount
             
             # Generate invoice number
-            cur.execute("SELECT COUNT(*) FROM invoices")
-            invoice_count = cur.fetchone()[0]
-            invoice_number = f"INV-{(invoice_count + 1):04d}"
+            from datetime import datetime
+            cur = mysql.connection.cursor()
+            current_year = datetime.now().year
+            cur.execute("SELECT COUNT(*) FROM invoices WHERE YEAR(invoice_date) = %s", (current_year,))
+            count = cur.fetchone()[0]
+            invoice_number = f"INV-{current_year}-{str(count + 1).zfill(4)}"
             
-            # Calculate total amount
-            amount_val = float(amount)
-            tax_rate_val = float(tax_rate)
-            tax_amount = amount_val * (tax_rate_val / 100)
-            total_amount = amount_val + tax_amount;
-            
-            cur.execute("""INSERT INTO invoices 
-                          (client_id, invoice_number, invoice_date, due_date, project_id, 
-                           amount, tax_rate, total_amount, status, notes) 
-                          VALUES (%s, %s, CURDATE(), %s, %s, %s, %s, %s, 'draft', %s)""", 
-                       (client_id, invoice_number, due_date, project_id, amount, tax_rate, total_amount, notes))
+            # Insert invoice
+            cur.execute("""
+                INSERT INTO invoices 
+                (client_id, project_id, invoice_number, invoice_date, due_date, 
+                 subtotal, tax_rate, tax_amount, discount_amount, total_amount, 
+                 currency, status, payment_method, notes, terms_conditions, created_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'draft', %s, %s, %s, NOW())
+            """, (client_id, project_id, invoice_number, invoice_date, due_date,
+                  subtotal_amount, tax_rate, tax_amount, discount_amount, total_amount,
+                  currency, payment_method, notes, terms_conditions))
             
             mysql.connection.commit()
             cur.close()
+            
             flash(f'Invoice {invoice_number} created successfully!', 'success')
+            return redirect(url_for('invoices'))
+            
         except Exception as e:
-            flash(f'Error creating invoice: {e}', 'danger')
-        
-        return redirect(url_for('invoices'))
+            mysql.connection.rollback()
+            flash(f"Error creating invoice: {e}", 'danger')
+            return redirect(url_for('invoices'))
     
     try:
         # For GET request, just render the invoice form
-        cur = mysql.connection.cursor()
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
         # Get active clients
         cur.execute("SELECT id, name FROM clients WHERE status = 'active' ORDER BY name")
         clients = cur.fetchall()
         
         # Get active projects for the client (if any client is selected)
-        selected_client_id = request.args.get('client_id')
-        projects = []
-        if selected_client_id:
-            cur.execute("SELECT id, name FROM projects WHERE client_id = %s AND status != 'completed' ORDER BY name", (selected_client_id,))
-            projects = cur.fetchall()
+        cur.execute("SELECT id, name, client_id FROM projects WHERE status != 'completed' ORDER BY name")
+        projects = cur.fetchall()
         
         cur.close()
         return render_template('add_invoice.html', clients=clients, projects=projects)
@@ -1340,16 +1475,148 @@ def add_invoice():
 @app.route('/update_invoice', methods=['POST'])
 def update_invoice():
     try:
+        # Get form data
         invoice_id = request.form['invoice_id']
-        status = request.form['status']
+        client_id = request.form.get('client_id')
+        project_id = request.form.get('project_id') if request.form.get('project_id') else None
+        invoice_date = request.form.get('invoice_date')
+        due_date = request.form.get('due_date')
+        subtotal_amount = float(request.form.get('subtotal_amount', 0))
+        tax_rate = float(request.form.get('tax_rate', 0))
+        discount_amount = float(request.form.get('discount_amount', 0))
+        currency = request.form.get('currency', 'INR')
+        status = request.form.get('status', 'draft')
+        payment_method = request.form.get('payment_method', 'bank_transfer')
+        notes = request.form.get('notes', '')
+        terms_conditions = request.form.get('terms_conditions', '')
+        
+        # Calculate amounts
+        tax_amount = (subtotal_amount - discount_amount) * (tax_rate / 100)
+        total_amount = subtotal_amount + tax_amount - discount_amount
+        
+        # Set payment date if status is paid
+        payment_date = None
+        if status == 'paid' and request.form.get('payment_date'):
+            payment_date = request.form.get('payment_date')
+        elif status == 'paid':
+            from datetime import datetime
+            payment_date = datetime.now().date()
         
         cur = mysql.connection.cursor()
-        cur.execute("UPDATE invoices SET status = %s WHERE id = %s", (status, invoice_id))
+        
+        # Update invoice
+        if payment_date:
+            cur.execute("""
+                UPDATE invoices 
+                SET client_id=%s, project_id=%s, invoice_date=%s, due_date=%s, 
+                    subtotal=%s, tax_rate=%s, tax_amount=%s, discount_amount=%s, 
+                    total_amount=%s, currency=%s, status=%s, payment_method=%s, 
+                    notes=%s, terms_conditions=%s, payment_date=%s, updated_date=NOW() 
+                WHERE id = %s
+            """, (client_id, project_id, invoice_date, due_date, subtotal_amount, 
+                  tax_rate, tax_amount, discount_amount, total_amount, currency, 
+                  status, payment_method, notes, terms_conditions, payment_date, invoice_id))
+        else:
+            cur.execute("""
+                UPDATE invoices 
+                SET client_id=%s, project_id=%s, invoice_date=%s, due_date=%s, 
+                    subtotal=%s, tax_rate=%s, tax_amount=%s, discount_amount=%s, 
+                    total_amount=%s, currency=%s, status=%s, payment_method=%s, 
+                    notes=%s, terms_conditions=%s, updated_date=NOW() 
+                WHERE id = %s
+            """, (client_id, project_id, invoice_date, due_date, subtotal_amount, 
+                  tax_rate, tax_amount, discount_amount, total_amount, currency, 
+                  status, payment_method, notes, terms_conditions, invoice_id))
+        
         mysql.connection.commit()
         cur.close()
-        flash(f'Invoice status updated to {status}!', 'success')
+        flash(f'Invoice updated successfully!', 'success')
     except Exception as e:
         flash(f'Error updating invoice: {e}', 'danger')
+    return redirect(url_for('invoices'))
+
+@app.route('/invoice/<int:id>')
+def get_invoice(id):
+    """Get invoice details for editing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT 
+                i.*,
+                c.name as client_name,
+                p.name as project_name
+            FROM invoices i 
+            LEFT JOIN clients c ON i.client_id = c.id 
+            LEFT JOIN projects p ON i.project_id = p.id 
+            WHERE i.id = %s
+        """, (id,))
+        invoice = cur.fetchone()
+        cur.close()
+        
+        if invoice:
+            return jsonify(invoice)
+        else:
+            return jsonify({'error': 'Invoice not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/projects/<int:client_id>')
+def get_projects_by_client(client_id):
+    """Get projects for a specific client"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT id, name 
+            FROM projects 
+            WHERE client_id = %s AND status != 'completed' 
+            ORDER BY name
+        """, (client_id,))
+        projects = cur.fetchall()
+        cur.close()
+        return jsonify(projects)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/invoices/bulk', methods=['POST'])
+def bulk_invoice_operations():
+    """Handle bulk operations on invoices"""
+    try:
+        action = request.form.get('action')
+        invoice_ids = request.form.getlist('invoice_ids[]')
+        
+        if not action or not invoice_ids:
+            flash('No action or invoices selected!', 'warning')
+            return redirect(url_for('invoices'))
+        
+        cur = mysql.connection.cursor()
+        
+        if action == 'delete':
+            # Delete selected invoices
+            format_strings = ','.join(['%s'] * len(invoice_ids))
+            cur.execute(f"DELETE FROM invoices WHERE id IN ({format_strings})", invoice_ids)
+            flash(f'{len(invoice_ids)} invoice(s) deleted successfully!', 'success')
+            
+        elif action in ['draft', 'sent', 'paid', 'overdue', 'cancelled']:
+            # Update status for selected invoices
+            format_strings = ','.join(['%s'] * len(invoice_ids))
+            cur.execute(f"UPDATE invoices SET status = %s WHERE id IN ({format_strings})", [action] + invoice_ids)
+            flash(f'{len(invoice_ids)} invoice(s) updated to {action} status!', 'success')
+            
+        elif action == 'mark_paid':
+            # Mark as paid with current date
+            from datetime import datetime
+            payment_date = datetime.now().date()
+            format_strings = ','.join(['%s'] * len(invoice_ids))
+            cur.execute(f"UPDATE invoices SET status = 'paid', payment_date = %s WHERE id IN ({format_strings})", [payment_date] + invoice_ids)
+            flash(f'{len(invoice_ids)} invoice(s) marked as paid!', 'success')
+        
+        mysql.connection.commit()
+        cur.close()
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error performing bulk operation: {e}', 'danger')
+    
     return redirect(url_for('invoices'))
 
 @app.route('/update_invoice_status/<int:id>/<status>')
@@ -1397,107 +1664,426 @@ def check_db_connection():
     except:
         return False
 
-# Helper function to format currency in Indian Rupees
-def format_currency(amount):
-    """Format amount as Indian Rupees"""
-    if amount is None or amount == 0:
-        return "₹0"
-    
-    # Convert to float if it's a string
-    try:
-        amount = float(amount)
-    except (ValueError, TypeError):
-        return "₹0"
-    
-    # Format with Indian number system (lakhs, crores)
-    if amount >= 10000000:  # 1 crore
-        return f"₹{amount/10000000:.1f}Cr"
-    elif amount >= 100000:  # 1 lakh
-        return f"₹{amount/100000:.1f}L"
-    elif amount >= 1000:
-        return f"₹{amount/1000:.1f}K"
-    else:
-        return f"₹{amount:,.0f}"
-
 # Expense Management routes
 @app.route('/expenses')
 def expenses():
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cur.execute("""SELECT e.id, 
-                       COALESCE(CONCAT(emp.first_name, ' ', emp.last_name), emp.name) as employee_name,
-                       e.expense_date as report_date,
-                       e.category,
-                       e.description,
-                       e.amount as total_amount,
-                       e.vendor_name,
-                       e.status,
-                       COALESCE(CONCAT(approver.first_name, ' ', approver.last_name), approver.name) as approved_by_name,
-                       e.approved_date,
-                       e.created_date
-                       FROM expense_reports e
-                       LEFT JOIN employees emp ON e.employee_id = emp.id
-                       LEFT JOIN employees approver ON e.approved_by = approver.id
-                       ORDER BY e.created_date DESC""")
+        
+        # Get all expenses with detailed information
+        cur.execute("""
+            SELECT 
+                e.id,
+                e.employee_id,
+                COALESCE(CONCAT(emp.first_name, ' ', emp.last_name), emp.name) as employee_name,
+                e.expense_date,
+                e.category,
+                e.description,
+                e.amount,
+                e.currency,
+                e.vendor_name,
+                e.project_id,
+                p.name as project_name,
+                e.status,
+                e.receipt_path,
+                COALESCE(CONCAT(approver.first_name, ' ', approver.last_name), approver.name) as approved_by_name,
+                e.approved_date,
+                e.rejection_reason,
+                e.payment_date,
+                e.payment_reference,
+                e.created_date,
+                e.updated_date
+            FROM expense_reports e
+            LEFT JOIN employees emp ON e.employee_id = emp.id
+            LEFT JOIN employees approver ON e.approved_by = approver.id
+            LEFT JOIN projects p ON e.project_id = p.id
+            ORDER BY e.created_date DESC
+        """)
         expenses = cur.fetchall()
         
         # Get employees for dropdown
-        cur.execute("""SELECT id, COALESCE(CONCAT(first_name, ' ', last_name), name) as name 
-                       FROM employees ORDER BY first_name, last_name, name""")
+        cur.execute("""
+            SELECT id, COALESCE(CONCAT(first_name, ' ', last_name), name) as name 
+            FROM employees 
+            WHERE status = 'active'
+            ORDER BY first_name, last_name, name
+        """)
         employees = cur.fetchall()
         
         # Get projects for dropdown
-        cur.execute("SELECT id, name FROM projects ORDER BY name")
+        cur.execute("SELECT id, name FROM projects WHERE status != 'completed' ORDER BY name")
         projects = cur.fetchall()
         
-        # Calculate summary statistics
+        # Calculate comprehensive statistics
+        from datetime import datetime, timedelta
+        current_month = datetime.now().replace(day=1)
+        
+        # Total statistics
+        cur.execute("SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM expense_reports")
+        total_stats = cur.fetchone()
+        
+        # Pending (submitted) statistics  
         cur.execute("SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM expense_reports WHERE status = 'submitted'")
         pending_stats = cur.fetchone()
         
+        # Approved statistics
         cur.execute("SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM expense_reports WHERE status = 'approved'")
         approved_stats = cur.fetchone()
         
+        # This month statistics
+        cur.execute("SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM expense_reports WHERE expense_date >= %s", (current_month,))
+        month_stats = cur.fetchone()
+        
         cur.close()
         
-        stats = {
-            'pending_count': pending_stats['count'] if pending_stats else 0,
+        statistics = {
+            'total': total_stats['count'] if total_stats else 0,
+            'total_amount': total_stats['total'] if total_stats else 0,
+            'pending': pending_stats['count'] if pending_stats else 0,
             'pending_amount': pending_stats['total'] if pending_stats else 0,
-            'approved_count': approved_stats['count'] if approved_stats else 0,
-            'approved_amount': approved_stats['total'] if approved_stats else 0
+            'approved': approved_stats['count'] if approved_stats else 0,
+            'approved_amount': approved_stats['total'] if approved_stats else 0,
+            'this_month': month_stats['count'] if month_stats else 0,
+            'this_month_amount': month_stats['total'] if month_stats else 0
         }
         
-        return render_template('expenses.html', expenses=expenses, employees=employees, projects=projects, stats=stats)
+        # Add current date for form defaults
+        current_date = datetime.now().date()
+        
+        return render_template('expenses.html', 
+                             expenses=expenses, 
+                             employees=employees, 
+                             projects=projects, 
+                             statistics=statistics,
+                             current_date=current_date)
+                             
     except Exception as e:
         flash(f'Error loading expenses: {e}', 'danger')
-        return render_template('expenses.html', expenses=[], employees=[], projects=[], stats={})
+        return render_template('expenses.html', 
+                             expenses=[], 
+                             employees=[], 
+                             projects=[], 
+                             statistics={'total': 0, 'total_amount': 0, 'pending': 0, 'pending_amount': 0, 'approved': 0, 'approved_amount': 0, 'this_month': 0, 'this_month_amount': 0},
+                             current_date=datetime.now().date())
 
 @app.route('/add_expense', methods=['POST'])
 def add_expense():
     try:
+        # Get form data
         employee_id = request.form['employee_id']
         expense_date = request.form.get('expense_date', datetime.now().strftime('%Y-%m-%d'))
         category = request.form.get('category', 'other')
-        description = request.form['description']
-        amount = request.form['total_amount']  # Changed from 'amount' to 'total_amount'
+        description = request.form.get('description', '')
+        amount = float(request.form['amount'])
+        currency = request.form.get('currency', 'INR')
         vendor_name = request.form.get('vendor_name', '')
         project_id = request.form.get('project_id') if request.form.get('project_id') else None
         
-        if not employee_id or not description or not amount:
-            flash('Employee, description, and amount are required!', 'danger')
-            return redirect(url_for('expenses'))
+        if not employee_id or not amount or not category:
+            return jsonify({'success': False, 'error': 'Employee, amount, and category are required!'})
+        
+        # Handle file upload
+        receipt_path = None
+        if 'receipt' in request.files:
+            receipt_file = request.files['receipt']
+            if receipt_file.filename != '':
+                # Save receipt file (implement file saving logic)
+                import os
+                from werkzeug.utils import secure_filename
+                
+                # Create uploads directory if it doesn't exist
+                upload_dir = os.path.join('static', 'uploads', 'receipts')
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                filename = secure_filename(receipt_file.filename)
+                receipt_path = os.path.join(upload_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}")
+                receipt_file.save(receipt_path)
         
         cur = mysql.connection.cursor()
-        cur.execute("""INSERT INTO expense_reports 
-                       (employee_id, expense_date, category, description, amount, vendor_name, project_id, status) 
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, 'submitted')""", 
-                   (employee_id, expense_date, category, description, amount, vendor_name, project_id))
+        cur.execute("""
+            INSERT INTO expense_reports 
+            (employee_id, expense_date, category, description, amount, currency, 
+             vendor_name, project_id, receipt_path, status, created_date) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'submitted', NOW())
+        """, (employee_id, expense_date, category, description, amount, currency, 
+              vendor_name, project_id, receipt_path))
+        
         mysql.connection.commit()
         cur.close()
-        flash('Expense report submitted successfully!', 'success')
+        
+        return jsonify({'success': True, 'message': 'Expense submitted successfully!'})
+        
     except Exception as e:
-        flash(f'Error adding expense: {e}', 'danger')
-    
-    return redirect(url_for('expenses'))
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'error': f'Error adding expense: {str(e)}'})
+
+# Additional expense routes
+@app.route('/api/expense/<int:expense_id>')
+def get_expense(expense_id):
+    """Get expense details for editing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT e.*, COALESCE(CONCAT(emp.first_name, ' ', emp.last_name), emp.name) as employee_name
+            FROM expense_reports e 
+            LEFT JOIN employees emp ON e.employee_id = emp.id 
+            WHERE e.id = %s
+        """, (expense_id,))
+        expense = cur.fetchone()
+        cur.close()
+        
+        if expense:
+            return jsonify(expense)
+        else:
+            return jsonify({'error': 'Expense not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/update_expense', methods=['POST'])
+def update_expense():
+    try:
+        expense_id = request.form['expense_id']
+        status = request.form.get('status', 'submitted')
+        amount = request.form.get('amount')
+        rejection_reason = request.form.get('rejection_reason', '')
+        
+        cur = mysql.connection.cursor()
+        
+        # Update expense
+        if amount:
+            cur.execute("""
+                UPDATE expense_reports 
+                SET status = %s, amount = %s, rejection_reason = %s, updated_date = NOW()
+                WHERE id = %s
+            """, (status, amount, rejection_reason, expense_id))
+        else:
+            cur.execute("""
+                UPDATE expense_reports 
+                SET status = %s, rejection_reason = %s, updated_date = NOW()
+                WHERE id = %s
+            """, (status, rejection_reason, expense_id))
+        
+        # Set approval date if approved
+        if status == 'approved':
+            cur.execute("""
+                UPDATE expense_reports 
+                SET approved_date = NOW(), approved_by = 19
+                WHERE id = %s
+            """, (expense_id,))
+        
+        # Set payment date if paid
+        if status == 'paid':
+            cur.execute("""
+                UPDATE expense_reports 
+                SET payment_date = NOW()
+                WHERE id = %s
+            """, (expense_id,))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash(f'Expense updated successfully!', 'success')
+        return redirect(url_for('expenses'))
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error updating expense: {e}', 'danger')
+        return redirect(url_for('expenses'))
+
+@app.route('/update_expense_status', methods=['POST'])
+def update_expense_status():
+    try:
+        expense_id = request.form['expense_id']
+        status = request.form['status']
+        rejection_reason = request.form.get('rejection_reason', '')
+        
+        cur = mysql.connection.cursor()
+        
+        # Update status
+        cur.execute("""
+            UPDATE expense_reports 
+            SET status = %s, rejection_reason = %s, updated_date = NOW()
+            WHERE id = %s
+        """, (status, rejection_reason, expense_id))
+        
+        # Set approval date if approved
+        if status == 'approved':
+            cur.execute("""
+                UPDATE expense_reports 
+                SET approved_date = NOW(), approved_by = 19
+                WHERE id = %s
+            """, (expense_id,))
+        
+        # Set payment date if paid
+        if status == 'paid':
+            cur.execute("""
+                UPDATE expense_reports 
+                SET payment_date = NOW()
+                WHERE id = %s
+            """, (expense_id,))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True, 'message': f'Expense {status} successfully!'})
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'error': f'Error updating expense: {str(e)}'})
+
+@app.route('/expenses/bulk', methods=['POST'])
+def bulk_expense_operations():
+    """Handle bulk operations on expenses"""
+    try:
+        action = request.form.get('action')
+        expense_ids = json.loads(request.form.get('expense_ids', '[]'))
+        rejection_reason = request.form.get('rejection_reason', '')
+        
+        if not action or not expense_ids:
+            return jsonify({'success': False, 'error': 'No action or expenses selected!'})
+        
+        cur = mysql.connection.cursor()
+        
+        if action == 'delete':
+            # Delete selected expenses
+            format_strings = ','.join(['%s'] * len(expense_ids))
+            cur.execute(f"DELETE FROM expense_reports WHERE id IN ({format_strings})", expense_ids)
+            message = f'{len(expense_ids)} expense(s) deleted successfully!'
+            
+        elif action == 'approve':
+            # Approve selected expenses
+            format_strings = ','.join(['%s'] * len(expense_ids))
+            cur.execute(f"""
+                UPDATE expense_reports 
+                SET status = 'approved', approved_date = NOW(), approved_by = 19, updated_date = NOW()
+                WHERE id IN ({format_strings})
+            """, expense_ids)
+            message = f'{len(expense_ids)} expense(s) approved successfully!'
+            
+        elif action == 'reject':
+            # Reject selected expenses
+            format_strings = ','.join(['%s'] * len(expense_ids))
+            params = [rejection_reason] + expense_ids
+            cur.execute(f"""
+                UPDATE expense_reports 
+                SET status = 'rejected', rejection_reason = %s, updated_date = NOW()
+                WHERE id IN ({format_strings})
+            """, params)
+            message = f'{len(expense_ids)} expense(s) rejected successfully!'
+            
+        elif action == 'pay':
+            # Mark as paid
+            format_strings = ','.join(['%s'] * len(expense_ids))
+            cur.execute(f"""
+                UPDATE expense_reports 
+                SET status = 'paid', payment_date = NOW(), updated_date = NOW()
+                WHERE id IN ({format_strings})
+            """, expense_ids)
+            message = f'{len(expense_ids)} expense(s) marked as paid!'
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True, 'message': message})
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'error': f'Error performing bulk operation: {str(e)}'})
+
+@app.route('/expenses/export')
+def export_expenses():
+    """Export expenses to CSV"""
+    try:
+        # Get filter parameters
+        search = request.args.get('search', '')
+        status = request.args.get('status', '')
+        employee = request.args.get('employee', '')
+        category = request.args.get('category', '')
+        
+        # Build query with filters
+        where_conditions = []
+        params = []
+        
+        if search:
+            where_conditions.append("(e.description LIKE %s OR emp.name LIKE %s OR e.vendor_name LIKE %s)")
+            search_term = f"%{search}%"
+            params.extend([search_term, search_term, search_term])
+        
+        if status:
+            where_conditions.append("e.status = %s")
+            params.append(status)
+            
+        if employee:
+            where_conditions.append("e.employee_id = %s")
+            params.append(employee)
+            
+        if category:
+            where_conditions.append("e.category = %s")
+            params.append(category)
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute(f"""
+            SELECT 
+                e.id,
+                COALESCE(CONCAT(emp.first_name, ' ', emp.last_name), emp.name) as employee_name,
+                e.expense_date,
+                e.category,
+                e.description,
+                e.amount,
+                e.currency,
+                e.vendor_name,
+                e.status,
+                e.created_date
+            FROM expense_reports e
+            LEFT JOIN employees emp ON e.employee_id = emp.id
+            {where_clause}
+            ORDER BY e.created_date DESC
+        """, params)
+        
+        expenses = cur.fetchall()
+        cur.close()
+        
+        # Create CSV response
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['ID', 'Employee', 'Date', 'Category', 'Description', 'Amount', 'Currency', 'Vendor', 'Status', 'Created'])
+        
+        # Write data
+        for expense in expenses:
+            writer.writerow([
+                expense['id'],
+                expense['employee_name'],
+                expense['expense_date'].strftime('%Y-%m-%d') if expense['expense_date'] else '',
+                expense['category'],
+                expense['description'],
+                expense['amount'],
+                expense['currency'] or 'INR',
+                expense['vendor_name'] or '',
+                expense['status'],
+                expense['created_date'].strftime('%Y-%m-%d %H:%M') if expense['created_date'] else ''
+            ])
+        
+        output.seek(0)
+        
+        from flask import make_response
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=expenses_{datetime.now().strftime("%Y%m%d")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        flash(f'Error exporting expenses: {e}', 'danger')
+        return redirect(url_for('expenses'))
 
 @app.route('/approve_expense/<int:id>')
 def approve_expense(id):
@@ -1598,6 +2184,346 @@ def delete_expense(id):
 def agreements():
     """Render the agreements page for legal documents"""
     return render_template('agreements.html')
+
+@app.route('/payroll')
+def payroll():
+    """Render the payroll management page"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get payroll statistics
+        cur.execute("SELECT COUNT(*) as total_runs FROM payroll_runs")
+        total_runs = cur.fetchone()['total_runs']
+        
+        cur.execute("SELECT COUNT(*) as active_employees FROM employees WHERE status = 'active'")
+        active_employees = cur.fetchone()['active_employees']
+        
+        cur.execute("""
+            SELECT COALESCE(SUM(basic_salary + COALESCE(allowances, 0)), 0) as monthly_payroll 
+            FROM salaries WHERE is_active = 1
+        """)
+        monthly_payroll = cur.fetchone()['monthly_payroll']
+        
+        cur.execute("""
+            SELECT DATE_FORMAT(MAX(created_date), '%d %b %Y') as last_run 
+            FROM payroll_runs
+        """)
+        last_run_result = cur.fetchone()
+        last_run = last_run_result['last_run'] if last_run_result['last_run'] else 'Never'
+        
+        # Get payroll runs
+        cur.execute("""
+            SELECT * FROM payroll_runs 
+            ORDER BY created_date DESC
+        """)
+        payroll_runs = cur.fetchall()
+        
+        stats = {
+            'total_runs': total_runs,
+            'active_employees': active_employees,
+            'monthly_payroll': float(monthly_payroll or 0),
+            'last_run': last_run
+        }
+        
+        cur.close()
+        
+        return render_template('payroll.html', 
+                             stats=stats, 
+                             payroll_runs=payroll_runs,
+                             today=datetime.now().date())
+        
+    except Exception as e:
+        print(f"Error loading payroll page: {e}")
+        stats = {'total_runs': 0, 'active_employees': 0, 'monthly_payroll': 0, 'last_run': 'Never'}
+        return render_template('payroll.html', stats=stats, payroll_runs=[], today=datetime.now().date())
+
+@app.route('/payroll/create', methods=['POST'])
+def create_payroll_run():
+    """Create a new payroll run"""
+    try:
+        run_name = request.form.get('runName')
+        pay_date = request.form.get('payDate')
+        pay_period_start = request.form.get('payPeriodStart')
+        pay_period_end = request.form.get('payPeriodEnd')
+        notes = request.form.get('notes', '')
+        
+        if not all([run_name, pay_date, pay_period_start, pay_period_end]):
+            flash('All required fields must be filled!', 'danger')
+            return redirect(url_for('payroll'))
+        
+        cur = mysql.connection.cursor()
+        
+        # Create payroll run
+        cur.execute("""
+            INSERT INTO payroll_runs (run_name, pay_date, pay_period_start, pay_period_end, notes, processed_by)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (run_name, pay_date, pay_period_start, pay_period_end, notes, 'Admin'))
+        
+        payroll_run_id = cur.lastrowid
+        
+        # Get all active employees with their current salaries
+        cur.execute("""
+            SELECT e.id as employee_id, s.id as salary_id, s.basic_salary, s.allowances, 
+                   (s.basic_salary + COALESCE(s.allowances, 0)) as gross_pay,
+                   COALESCE(s.deductions, 0) as deductions,
+                   (s.basic_salary + COALESCE(s.allowances, 0) - COALESCE(s.deductions, 0)) as net_pay
+            FROM employees e
+            JOIN salaries s ON e.id = s.employee_id
+            WHERE e.status = 'active' AND s.is_active = 1
+        """)
+        
+        employees = cur.fetchall()
+        
+        total_employees = len(employees)
+        total_gross_pay = 0
+        total_deductions = 0
+        total_net_pay = 0
+        
+        # Create payroll entries for each employee
+        for emp in employees:
+            cur.execute("""
+                INSERT INTO payroll_entries 
+                (payroll_run_id, employee_id, salary_id, basic_salary, allowances, gross_pay, 
+                 total_deductions, net_pay)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (payroll_run_id, emp[0], emp[1], emp[2], emp[3] or 0, emp[4], emp[5], emp[6]))
+            
+            total_gross_pay += float(emp[4])
+            total_deductions += float(emp[5])
+            total_net_pay += float(emp[6])
+        
+        # Update payroll run totals
+        cur.execute("""
+            UPDATE payroll_runs 
+            SET total_employees = %s, total_gross_pay = %s, total_deductions = %s, total_net_pay = %s
+            WHERE id = %s
+        """, (total_employees, total_gross_pay, total_deductions, total_net_pay, payroll_run_id))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash(f'Payroll run "{run_name}" created successfully with {total_employees} employees!', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error creating payroll run: {e}")
+        flash(f'Error creating payroll run: {str(e)}', 'danger')
+    
+    return redirect(url_for('payroll'))
+
+@app.route('/payroll/<int:payroll_id>')
+def payroll_details(payroll_id):
+    """View detailed payroll run information"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get payroll run details
+        cur.execute("""
+            SELECT * FROM payroll_runs WHERE id = %s
+        """, (payroll_id,))
+        payroll_run = cur.fetchone()
+        
+        if not payroll_run:
+            flash('Payroll run not found!', 'danger')
+            return redirect(url_for('payroll'))
+        
+        # Get payroll entries with employee details
+        cur.execute("""
+            SELECT pe.*, e.name as employee_name, e.email, e.employee_id as emp_code,
+                   COALESCE(CONCAT(e.first_name, ' ', e.last_name), e.name) as full_name
+            FROM payroll_entries pe
+            JOIN employees e ON pe.employee_id = e.id
+            WHERE pe.payroll_run_id = %s
+            ORDER BY e.name
+        """, (payroll_id,))
+        payroll_entries = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('payroll_details.html', 
+                             payroll_run=payroll_run, 
+                             payroll_entries=payroll_entries)
+        
+    except Exception as e:
+        print(f"Error loading payroll details: {e}")
+        flash('Error loading payroll details!', 'danger')
+        return redirect(url_for('payroll'))
+
+@app.route('/payroll/<int:payroll_id>/edit', methods=['GET', 'POST'])
+def edit_payroll_run(payroll_id):
+    """Edit payroll run (only if status is draft)"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        if request.method == 'POST':
+            run_name = request.form.get('runName')
+            pay_date = request.form.get('payDate')
+            pay_period_start = request.form.get('payPeriodStart')
+            pay_period_end = request.form.get('payPeriodEnd')
+            notes = request.form.get('notes', '')
+            
+            if not all([run_name, pay_date, pay_period_start, pay_period_end]):
+                flash('All required fields must be filled!', 'danger')
+                return redirect(url_for('payroll_details', payroll_id=payroll_id))
+            
+            # Check if payroll is still in draft status
+            cur.execute("SELECT status FROM payroll_runs WHERE id = %s", (payroll_id,))
+            status_result = cur.fetchone()
+            
+            if not status_result or status_result['status'] != 'draft':
+                flash('Only draft payroll runs can be edited!', 'danger')
+                return redirect(url_for('payroll_details', payroll_id=payroll_id))
+            
+            # Update payroll run
+            cur.execute("""
+                UPDATE payroll_runs 
+                SET run_name = %s, pay_date = %s, pay_period_start = %s, 
+                    pay_period_end = %s, notes = %s, updated_date = NOW()
+                WHERE id = %s
+            """, (run_name, pay_date, pay_period_start, pay_period_end, notes, payroll_id))
+            
+            mysql.connection.commit()
+            cur.close()
+            
+            flash('Payroll run updated successfully!', 'success')
+            return redirect(url_for('payroll_details', payroll_id=payroll_id))
+        
+        else:
+            # GET request - show edit form
+            cur.execute("SELECT * FROM payroll_runs WHERE id = %s", (payroll_id,))
+            payroll_run = cur.fetchone()
+            
+            if not payroll_run:
+                flash('Payroll run not found!', 'danger')
+                return redirect(url_for('payroll'))
+            
+            if payroll_run['status'] != 'draft':
+                flash('Only draft payroll runs can be edited!', 'warning')
+                return redirect(url_for('payroll_details', payroll_id=payroll_id))
+            
+            cur.close()
+            return render_template('payroll_edit.html', payroll_run=payroll_run)
+            
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error editing payroll run: {e}")
+        flash('Error editing payroll run!', 'danger')
+        return redirect(url_for('payroll'))
+
+@app.route('/payroll/<int:payroll_id>/delete', methods=['POST'])
+def delete_payroll_run(payroll_id):
+    """Delete payroll run and all associated entries"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Check if payroll run exists and get its status
+        cur.execute("SELECT run_name, status FROM payroll_runs WHERE id = %s", (payroll_id,))
+        payroll_run = cur.fetchone()
+        
+        if not payroll_run:
+            flash('Payroll run not found!', 'danger')
+            return redirect(url_for('payroll'))
+        
+        # Only allow deletion of draft runs
+        if payroll_run['status'] != 'draft':
+            flash('Only draft payroll runs can be deleted!', 'warning')
+            return redirect(url_for('payroll'))
+        
+        # Delete payroll entries first (due to foreign key constraint)
+        cur.execute("DELETE FROM payroll_entries WHERE payroll_run_id = %s", (payroll_id,))
+        
+        # Delete the payroll run
+        cur.execute("DELETE FROM payroll_runs WHERE id = %s", (payroll_id,))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash(f'Payroll run "{payroll_run["run_name"]}" deleted successfully!', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error deleting payroll run: {e}")
+        flash('Error deleting payroll run!', 'danger')
+    
+    return redirect(url_for('payroll'))
+
+@app.route('/payroll/<int:payroll_id>/status/<new_status>')
+def update_payroll_status(payroll_id, new_status):
+    """Update payroll run status"""
+    try:
+        if new_status not in ['draft', 'processing', 'completed', 'cancelled']:
+            flash('Invalid status!', 'danger')
+            return redirect(url_for('payroll'))
+        
+        cur = mysql.connection.cursor()
+        
+        cur.execute("""
+            UPDATE payroll_runs 
+            SET status = %s, updated_date = NOW()
+            WHERE id = %s
+        """, (new_status, payroll_id))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        flash(f'Payroll status updated to {new_status.title()}!', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error updating payroll status: {e}")
+        flash('Error updating payroll status!', 'danger')
+    
+    return redirect(url_for('payroll'))
+
+@app.route('/payroll/<int:payroll_id>/download')
+def download_payroll_report(payroll_id):
+    """Download payroll report as PDF or Excel"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get payroll run details
+        cur.execute("SELECT * FROM payroll_runs WHERE id = %s", (payroll_id,))
+        payroll_run = cur.fetchone()
+        
+        if not payroll_run:
+            flash('Payroll run not found!', 'danger')
+            return redirect(url_for('payroll'))
+        
+        # Get payroll entries with employee details
+        cur.execute("""
+            SELECT pe.*, e.name as employee_name, e.email, e.employee_id as emp_code,
+                   COALESCE(CONCAT(e.first_name, ' ', e.last_name), e.name) as full_name
+            FROM payroll_entries pe
+            JOIN employees e ON pe.employee_id = e.id
+            WHERE pe.payroll_run_id = %s
+            ORDER BY e.name
+        """, (payroll_id,))
+        payroll_entries = cur.fetchall()
+        
+        cur.close()
+        
+        # For now, redirect to details page with a message
+        # In a real implementation, you would generate PDF/Excel here
+        flash(f'Download functionality for "{payroll_run["run_name"]}" will be available soon!', 'info')
+        return redirect(url_for('payroll_details', payroll_id=payroll_id))
+        
+    except Exception as e:
+        print(f"Error downloading payroll report: {e}")
+        flash('Error preparing download!', 'danger')
+        return redirect(url_for('payroll'))
+
+@app.route('/payroll/export')
+def export_payroll_data():
+    """Export all payroll data"""
+    try:
+        # For now, show a message that export is coming soon
+        flash('Export functionality will be available soon!', 'info')
+        return redirect(url_for('payroll'))
+        
+    except Exception as e:
+        print(f"Error exporting payroll data: {e}")
+        flash('Error preparing export!', 'danger')
+        return redirect(url_for('payroll'))
 
 # Context processor to add global variables
 @app.context_processor

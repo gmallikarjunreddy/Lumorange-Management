@@ -1,106 +1,602 @@
 {% extends "base.html" %}
 
-{% block title %}Payroll Reports - Lumorange Management{% endblock %}
+{% block title %}Payroll Management - Lumorange{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item active">Payroll Management</li>
+{% endblock %}
+
+{% block page_title %}Payroll Management{% endblock %}
+
+{% block page_subtitle %}
+    <small class="text-muted">Process and manage employee payroll runs</small>
+{% endblock %}
 
 {% block content %}
-<h2><i class="fas fa-file-invoice-dollar"></i> Payroll Reports</h2>
-
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-calculator"></i> Generate Monthly Payroll</h5>
+<div class="container-fluid">
+    <!-- Quick Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <div class="me-3">
+                <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newPayrollModal" data-loading="true">
+                    <i class="fas fa-plus me-2"></i>New Payroll Run
+                </button>
+            </div>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('export_payroll_data') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-download me-1"></i>Export
+                </a>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i>Print
+                </button>
+            </div>
+        </div>
+        <div class="d-flex align-items-center text-muted">
+            <i class="fas fa-info-circle me-2"></i>
+            <small>Last updated: {{ moment().format('MMM DD, YYYY HH:mm') if moment else 'Just now' }}</small>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST" action="/generate_payroll">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="month" class="form-label">Month</label>
-                    <select name="month" id="month" class="form-control" required>
-                        <option value="">Select Month</option>
-                        <option value="1">January</option>
-                        <option value="2">February</option>
-                        <option value="3">March</option>
-                        <option value="4">April</option>
-                        <option value="5">May</option>
-                        <option value="6">June</option>
-                        <option value="7">July</option>
-                        <option value="8">August</option>
-                        <option value="9">September</option>
-                        <option value="10">October</option>
-                        <option value="11">November</option>
-                        <option value="12">December</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="year" class="form-label">Year</label>
-                    <input type="number" name="year" id="year" class="form-control" min="2020" max="2030" value="2025" required>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-calculator"></i> Generate Payroll</button>
+
+    <!-- Statistics Dashboard -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card primary h-100">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <i class="fas fa-play-circle fa-3x opacity-75"></i>
+                        <span class="badge bg-light text-primary">Total</span>
+                    </div>
+                    <h2 class="mb-1 fw-bold">{{ stats.total_runs }}</h2>
+                    <p class="mb-0 opacity-90">Payroll Runs</p>
+                    <small class="opacity-75">
+                        <i class="fas fa-arrow-up me-1"></i>All time
+                    </small>
                 </div>
             </div>
-        </form>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card success h-100">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <i class="fas fa-users fa-3x opacity-75"></i>
+                        <span class="badge bg-light text-success">Active</span>
+                    </div>
+                    <h2 class="mb-1 fw-bold">{{ stats.active_employees }}</h2>
+                    <p class="mb-0 opacity-90">Employees</p>
+                    <small class="opacity-75">
+                        <i class="fas fa-user-check me-1"></i>Ready for payroll
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card warning h-100">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <i class="fas fa-rupee-sign fa-3x opacity-75"></i>
+                        <span class="badge bg-light text-warning">Monthly</span>
+                    </div>
+                    <h2 class="mb-1 fw-bold">₹{{ "{:,.0f}".format(stats.monthly_payroll) }}</h2>
+                    <p class="mb-0 opacity-90">Total Payroll</p>
+                    <small class="opacity-75">
+                        <i class="fas fa-calculator me-1"></i>Gross amount
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card info h-100">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <i class="fas fa-calendar-check fa-3x opacity-75"></i>
+                        <span class="badge bg-light text-info">Latest</span>
+                    </div>
+                    <h2 class="mb-1 fw-bold">{{ stats.last_run }}</h2>
+                    <p class="mb-0 opacity-90">Last Run</p>
+                    <small class="opacity-75">
+                        <i class="fas fa-clock me-1"></i>Most recent
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Runs Table -->
+    <div class="card">
+        <div class="card-header bg-white border-bottom">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        Payroll Runs
+                        <span class="badge bg-light text-dark ms-2">{{ payroll_runs|length }}</span>
+                    </h5>
+                    <small class="text-muted">Manage and track all payroll processing runs</small>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" placeholder="Search runs..." id="searchInput">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="payrollTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    Run Details
+                                    <i class="fas fa-info-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Name and creation date of payroll run"></i>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    Pay Period
+                                    <i class="fas fa-calendar help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Date range for this payroll period"></i>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center">
+                                    Payment Date
+                                    <i class="fas fa-money-bill help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Scheduled payment date for employees"></i>
+                                </div>
+                            </th>
+                            <th class="text-center">Employees</th>
+                            <th class="text-end">Gross Pay</th>
+                            <th class="text-end">Net Pay</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if payroll_runs %}
+                            {% for run in payroll_runs %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ run.run_name }}</div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            Created {{ run.created_date.strftime('%d %b %Y') }}
+                                        </small>
+                                        {% if run.notes %}
+                                        <div class="mt-1">
+                                            <span class="badge bg-light text-dark" data-bs-toggle="tooltip" title="{{ run.notes }}">
+                                                <i class="fas fa-sticky-note me-1"></i>Has notes
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ run.pay_period_start.strftime('%d %b') }} - {{ run.pay_period_end.strftime('%d %b %Y') }}</div>
+                                    <small class="text-muted">
+                                        {% set period_days = (run.pay_period_end - run.pay_period_start).days + 1 %}
+                                        {{ period_days }} days
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ run.pay_date.strftime('%d %b %Y') }}</div>
+                                    <small class="text-muted">{{ run.pay_date.strftime('%A') }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary fs-6 px-3 py-2">
+                                        <i class="fas fa-users me-1"></i>{{ run.total_employees or 0 }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold">₹{{ "{:,.2f}".format(run.total_gross_pay or 0) }}</div>
+                                    {% if run.total_employees and run.total_employees > 0 %}
+                                    <small class="text-muted">₹{{ "{:,.0f}".format((run.total_gross_pay or 0) / run.total_employees) }} avg</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-success">₹{{ "{:,.2f}".format(run.total_net_pay or 0) }}</div>
+                                    {% if run.total_gross_pay and run.total_gross_pay > 0 %}
+                                    {% set deduction_percent = (((run.total_gross_pay or 0) - (run.total_net_pay or 0)) / run.total_gross_pay * 100) %}
+                                    <small class="text-muted">-{{ "{:.1f}".format(deduction_percent) }}% deductions</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if run.status == 'draft' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-edit me-1"></i>Draft
+                                        </span>
+                                    {% elif run.status == 'processing' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-spinner fa-spin me-1"></i>Processing
+                                        </span>
+                                    {% elif run.status == 'completed' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Completed
+                                        </span>
+                                    {% elif run.status == 'cancelled' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Cancelled
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ run.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center pe-4">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('payroll_details', payroll_id=run.id) }}" 
+                                           class="btn btn-outline-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View payroll details and employee breakdown">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('download_payroll_report', payroll_id=run.id) }}" 
+                                           class="btn btn-outline-info" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Download payroll report (PDF)">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% if run.status == 'draft' %}
+                                        <a href="{{ url_for('edit_payroll_run', payroll_id=run.id) }}" 
+                                           class="btn btn-outline-warning" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Edit payroll run">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('delete_payroll_run', payroll_id=run.id) }}" class="d-inline">
+                                            <button type="submit" 
+                                                    class="btn btn-outline-danger btn-sm" 
+                                                    data-confirm="Are you sure you want to delete '{{ run.run_name }}'? This action cannot be undone."
+                                                    data-bs-toggle="tooltip" 
+                                                    title="Delete payroll run permanently">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="py-4">
+                                    <i class="fas fa-money-check-alt fa-4x text-muted mb-3"></i>
+                                    <h5>No Payroll Runs Yet</h5>
+                                    <p class="text-muted mb-4">Create your first payroll run to process employee payments.</p>
+                                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newPayrollModal">
+                                        <i class="fas fa-plus me-2"></i>Create First Payroll Run
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if payroll_runs|length > 0 %}
+        <div class="card-footer bg-light">
+            <div class="row align-items-center text-muted small">
+                <div class="col">
+                    Showing {{ payroll_runs|length }} payroll run{{ 's' if payroll_runs|length != 1 else '' }}
+                </div>
+                <div class="col-auto">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Total processed: ₹{{ "{:,.2f}".format(payroll_runs|sum(attribute='total_net_pay') or 0) }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-list"></i> Payroll Reports</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ID</th>
-                        <th>Employee</th>
-                        <th>Month/Year</th>
-                        <th>Basic Salary</th>
-                        <th>Allowances</th>
-                        <th>Deductions</th>
-                        <th>Net Salary</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for payroll in payroll_reports %}
-                    <tr>
-                        <td>{{ payroll[0] }}</td>
-                        <td><i class="fas fa-user"></i> {{ payroll[1] }}</td>
-                        <td><i class="fas fa-calendar"></i> {{ payroll[2] }}/{{ payroll[3] }}</td>
-                        <td><i class="fas fa-rupee-sign"></i> {{ format_currency(payroll[4]) }}</td>
-                        <td><i class="fas fa-plus text-success"></i> {{ format_currency(payroll[5]) }}</td>
-                        <td><i class="fas fa-minus text-danger"></i> {{ format_currency(payroll[6]) }}</td>
-                        <td><strong><i class="fas fa-rupee-sign"></i> {{ format_currency(payroll[7]) }}</strong></td>
-                        <td>
-                            {% if payroll[8] == 'draft' %}
-                                <span class="badge bg-warning">Draft</span>
-                            {% elif payroll[8] == 'processed' %}
-                                <span class="badge bg-info">Processed</span>
-                            {% elif payroll[8] == 'paid' %}
-                                <span class="badge bg-success">Paid</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if payroll[8] == 'draft' %}
-                                <a href="/update_payroll_status/{{ payroll[0] }}/processed" class="btn btn-info btn-sm">
-                                    <i class="fas fa-check"></i> Process
-                                </a>
-                            {% elif payroll[8] == 'processed' %}
-                                <a href="/update_payroll_status/{{ payroll[0] }}/paid" class="btn btn-success btn-sm">
-                                    <i class="fas fa-money-bill"></i> Mark Paid
-                                </a>
-                            {% endif %}
-                            <a href="/delete_payroll/{{ payroll[0] }}" class="btn btn-danger btn-sm" 
-                               onclick="return confirm('Are you sure you want to delete this payroll record?')">
-                                <i class="fas fa-trash"></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- New Payroll Run Modal -->
+<div class="modal fade" id="newPayrollModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Create New Payroll Run
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_payroll_run') }}" method="POST" data-validate="true" novalidate>
+                <div class="modal-body">
+                    <!-- Progress Indicator -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <div>
+                                        <strong>Setting up payroll run</strong><br>
+                                        <small>This will create a new payroll run for all {{ stats.active_employees }} active employees with their current salary information.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Fields -->
+                    <div class="row">
+                        <!-- Left Column -->
+                        <div class="col-lg-6">
+                            <div class="mb-4">
+                                <label for="runName" class="form-label">
+                                    Run Name 
+                                    <span class="text-danger">*</span>
+                                    <i class="fas fa-question-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="A descriptive name for this payroll run (e.g., 'August 2025 Payroll')"></i>
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="runName" 
+                                       name="runName" 
+                                       required
+                                       placeholder="e.g., August 2025 Payroll">
+                                <div class="form-text">
+                                    <i class="fas fa-lightbulb me-1"></i>
+                                    Auto-generated based on current month and year
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please provide a name for this payroll run.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="payDate" class="form-label">
+                                    Payment Date 
+                                    <span class="text-danger">*</span>
+                                    <i class="fas fa-question-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="The date when employees will receive their payment"></i>
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-lg" 
+                                       id="payDate" 
+                                       name="payDate" 
+                                       required>
+                                <div class="form-text">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Usually set to the 5th of the next month
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please select a payment date.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="notes" class="form-label">
+                                    Notes & Comments
+                                    <i class="fas fa-question-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Optional notes about this payroll run"></i>
+                                </label>
+                                <textarea class="form-control" 
+                                          id="notes" 
+                                          name="notes" 
+                                          rows="4"
+                                          placeholder="Add any special notes about this payroll run..."></textarea>
+                                <div class="form-text">
+                                    Optional: Add any special instructions or notes
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div class="col-lg-6">
+                            <div class="mb-4">
+                                <label for="payPeriodStart" class="form-label">
+                                    Pay Period Start 
+                                    <span class="text-danger">*</span>
+                                    <i class="fas fa-question-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="First day of the pay period being processed"></i>
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-lg" 
+                                       id="payPeriodStart" 
+                                       name="payPeriodStart" 
+                                       required>
+                                <div class="form-text">
+                                    <i class="fas fa-play me-1"></i>
+                                    Auto-set to first day of current month
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please select the pay period start date.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="payPeriodEnd" class="form-label">
+                                    Pay Period End 
+                                    <span class="text-danger">*</span>
+                                    <i class="fas fa-question-circle help-tooltip ms-1" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Last day of the pay period being processed"></i>
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-lg" 
+                                       id="payPeriodEnd" 
+                                       name="payPeriodEnd" 
+                                       required>
+                                <div class="form-text">
+                                    <i class="fas fa-stop me-1"></i>
+                                    Auto-set to last day of current month
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please select the pay period end date.
+                                </div>
+                            </div>
+
+                            <!-- Preview Box -->
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-eye me-2"></i>Payroll Preview
+                                    </h6>
+                                    <div class="row g-2 small">
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Active Employees:</span>
+                                                <span class="fw-bold">{{ stats.active_employees }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Gross Total:</span>
+                                                <span class="fw-bold text-success">₹{{ "{:,.0f}".format(stats.monthly_payroll) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <hr class="my-2">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Est. Processing Time:</span>
+                                                <span class="fw-bold">~2-3 minutes</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warning/Information -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-warning d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                                <div>
+                                    <strong>Important:</strong> This action will create payroll entries for all active employees based on their current salary settings. Please ensure all employee salary information is up-to-date before proceeding.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-loading="true">
+                        <i class="fas fa-rocket me-2"></i>Create Payroll Run
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Enhanced payroll form management
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default values with better date logic
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Calculate pay period (current month)
+        const payPeriodStart = new Date(currentYear, currentMonth, 1);
+        const payPeriodEnd = new Date(currentYear, currentMonth + 1, 0);
+        
+        // Calculate pay date (5th of next month)
+        const payDate = new Date(currentYear, currentMonth + 1, 5);
+        
+        // Set form values
+        document.getElementById('payPeriodStart').value = payPeriodStart.toISOString().split('T')[0];
+        document.getElementById('payPeriodEnd').value = payPeriodEnd.toISOString().split('T')[0];
+        document.getElementById('payDate').value = payDate.toISOString().split('T')[0];
+        
+        // Generate smart run name
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        const runName = `${monthNames[currentMonth]} ${currentYear} Payroll`;
+        document.getElementById('runName').value = runName;
+        
+        // Real-time validation
+        const form = document.querySelector('form[data-validate="true"]');
+        const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+        
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                validateField(this);
+            });
+            
+            input.addEventListener('input', function() {
+                if (this.classList.contains('is-invalid')) {
+                    validateField(this);
+                }
+            });
+        });
+        
+        // Date validation
+        const startDate = document.getElementById('payPeriodStart');
+        const endDate = document.getElementById('payPeriodEnd');
+        const paymentDate = document.getElementById('payDate');
+        
+        function validateDates() {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            const payment = new Date(paymentDate.value);
+            
+            // End date should be after start date
+            if (start && end && end <= start) {
+                endDate.setCustomValidity('End date must be after start date');
+                endDate.classList.add('is-invalid');
+            } else {
+                endDate.setCustomValidity('');
+                endDate.classList.remove('is-invalid');
+            }
+            
+            // Payment date should be after end date
+            if (end && payment && payment <= end) {
+                paymentDate.setCustomValidity('Payment date should be after pay period ends');
+                paymentDate.classList.add('is-invalid');
+            } else {
+                paymentDate.setCustomValidity('');
+                paymentDate.classList.remove('is-invalid');
+            }
+        }
+        
+        startDate.addEventListener('change', validateDates);
+        endDate.addEventListener('change', validateDates);
+        paymentDate.addEventListener('change', validateDates);
+        
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const tableRows = document.querySelectorAll('#payrollTable tbody tr');
+                
+                tableRows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+    
+    function validateField(field) {
+        if (field.checkValidity()) {
+            field.classList.remove('is-invalid');
+            field.classList.add('is-valid');
+        } else {
+            field.classList.remove('is-valid');
+            field.classList.add('is-invalid');
+        }
+    }
+</script>
 {% endblock %}

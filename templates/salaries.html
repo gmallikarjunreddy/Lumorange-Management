@@ -1,85 +1,1132 @@
 {% extends "base.html" %}
 
-{% block title %}Salaries - Lumorange Management{% endblock %}
+{% block title %}Salary Management - Lumorange Management{% endblock %}
 
 {% block content %}
-<h2><i class="fas fa-rupee-sign"></i> Salary Management</h2>
+<style>
+/* Modern Salary Management Styles */
+.salary-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
 
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-plus"></i> Add Salary Record</h5>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="/add_salary">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="employee_id" class="form-label">Employee ID</label>
-                    <input type="number" name="employee_id" id="employee_id" class="form-control" placeholder="Enter employee ID" required>
-                </div>
-                <div class="col-md-4">
-                    <label for="basic_salary" class="form-label">Basic Salary</label>
-                    <input type="number" step="0.01" name="basic_salary" id="basic_salary" class="form-control" placeholder="Enter basic salary" required>
-                </div>
-                <div class="col-md-4">
-                    <label for="allowances" class="form-label">Allowances</label>
-                    <input type="number" step="0.01" name="allowances" id="allowances" class="form-control" placeholder="Enter allowances">
-                </div>
-                <div class="col-md-4">
-                    <label for="deductions" class="form-label">Deductions</label>
-                    <input type="number" step="0.01" name="deductions" id="deductions" class="form-control" placeholder="Enter deductions">
-                </div>
-                <div class="col-md-4">
-                    <label for="effective_date" class="form-label">Effective Date</label>
-                    <input type="date" name="effective_date" id="effective_date" class="form-control" required>
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Salary Record</button>
+.salary-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    transform: rotate(45deg);
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border: none;
+    border-radius: 15px;
+    padding: 1.5rem;
+    height: 100%;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.stat-card.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.stat-card.success { background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); color: white; }
+.stat-card.warning { background: linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%); color: white; }
+.stat-card.info { background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; }
+
+.salary-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.salary-card:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1.5rem;
+}
+
+.form-control, .form-select {
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    transform: translateY(-2px);
+}
+
+.btn {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%);
+    border: none;
+    color: white;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+    border: none;
+}
+
+.salary-table {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.table thead th:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.table thead th.sortable::after {
+    content: '↕';
+    position: absolute;
+    right: 8px;
+    opacity: 0.5;
+}
+
+.table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: #f8f9fa;
+}
+
+.salary-row {
+    transition: all 0.3s ease;
+}
+
+.salary-row:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+}
+
+.employee-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.salary-amount {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.positive-amount { color: #28a745; }
+.negative-amount { color: #dc3545; }
+.net-salary { 
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 700;
+}
+
+.search-filter-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.input-group {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.input-group-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+.modal-content {
+    border-radius: 20px;
+    border: none;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    border: none;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.record-count {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.salary-breakdown {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.breakdown-item:last-child {
+    border-bottom: none;
+    font-weight: 700;
+    color: #28a745;
+}
+</style>
+
+<div class="fade-in">
+    <!-- Hero Section -->
+    <div class="salary-hero">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-6 fw-bold mb-3">
+                    <i class="fas fa-wallet me-3"></i>Salary Management
+                </h1>
+                <p class="lead mb-0">Manage employee compensation with comprehensive salary tracking and advanced analytics</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#addSalaryModal">
+                        <i class="fas fa-plus me-2"></i>Add Salary
+                    </button>
+                    <button class="btn btn-outline-light" onclick="exportSalaryData()">
+                        <i class="fas fa-download me-2"></i>Export
+                    </button>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-list"></i> Salary Records</h5>
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card primary">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-users fa-3x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-4 fw-bold">{{ salaries|length }}</div>
+                        <div class="text-sm opacity-75">Active Salaries</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card success">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-rupee-sign fa-3x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-4 fw-bold">{{ format_currency(salaries|sum(attribute='5') or 0, 'INR') }}</div>
+                        <div class="text-sm opacity-75">Total Monthly Payroll</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card warning">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-chart-line fa-3x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-4 fw-bold">
+                            {% if salaries|length > 0 %}
+                                {{ format_currency((salaries|sum(attribute='5') or 0) // (salaries|length), 'INR') }}
+                            {% else %}
+                                {{ format_currency(0, 'INR') }}
+                            {% endif %}
+                        </div>
+                        <div class="text-sm opacity-75">Average Salary</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card info">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-calendar fa-3x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-4 fw-bold">{{ format_currency((salaries|sum(attribute='5') or 0) * 12, 'INR') }}</div>
+                        <div class="text-sm opacity-75">Annual Payroll</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ID</th>
-                        <th>Employee</th>
-                        <th>Basic Salary</th>
-                        <th>Allowances</th>
-                        <th>Deductions</th>
-                        <th>Net Salary</th>
-                        <th>Effective Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for salary in salaries %}
-                    <tr>
-                        <td>{{ salary[0] }}</td>
-                        <td><i class="fas fa-user"></i> {{ salary[1] }}</td>
-                        <td><i class="fas fa-rupee-sign"></i> {{ format_currency(salary[2]) }}</td>
-                        <td><i class="fas fa-plus text-success"></i> {{ format_currency(salary[3]) }}</td>
-                        <td><i class="fas fa-minus text-danger"></i> {{ format_currency(salary[4]) }}</td>
-                        <td><strong><i class="fas fa-rupee-sign"></i> {{ format_currency(salary[5]) }}</strong></td>
-                        <td>{{ salary[6] }}</td>
-                        <td>
-                            <a href="/delete_salary/{{ salary[0] }}" class="btn btn-danger btn-sm" 
-                               onclick="return confirm('Are you sure you want to delete this salary record?')">
-                                <i class="fas fa-trash"></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- Search and Filter Section -->
+    <div class="search-filter-section">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="salarySearch" 
+                           placeholder="Search employees, amounts..." aria-label="Search salaries">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="departmentFilter">
+                    <option value="">All Departments</option>
+                    <!-- Dynamic departments will be populated -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="salaryRangeFilter">
+                    <option value="">All Ranges</option>
+                    <option value="0-25000">₹0 - ₹25,000</option>
+                    <option value="25000-50000">₹25,000 - ₹50,000</option>
+                    <option value="50000-75000">₹50,000 - ₹75,000</option>
+                    <option value="75000-100000">₹75,000 - ₹100,000</option>
+                    <option value="100000+">₹100,000+</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="sortBy">
+                    <option value="name">Sort by Name</option>
+                    <option value="salary-asc">Salary (Low to High)</option>
+                    <option value="salary-desc">Salary (High to Low)</option>
+                    <option value="date">Effective Date</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Salary Records Table -->
+    <div class="salary-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 d-flex align-items-center">
+                    <i class="fas fa-table me-2"></i>Salary Records
+                </h6>
+            </div>
+            <div class="record-count">
+                Showing {{ salaries|length }} salaries
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="id">
+                                <i class="fas fa-hashtag me-2"></i>ID
+                            </th>
+                            <th class="sortable" data-sort="employee">
+                                <i class="fas fa-user me-2"></i>Employee
+                            </th>
+                            <th class="sortable" data-sort="basic">
+                                <i class="fas fa-rupee-sign me-2"></i>Basic Salary
+                            </th>
+                            <th class="sortable" data-sort="allowances">
+                                <i class="fas fa-plus me-2"></i>Allowances
+                            </th>
+                            <th class="sortable" data-sort="deductions">
+                                <i class="fas fa-minus me-2"></i>Deductions
+                            </th>
+                            <th class="sortable" data-sort="net">
+                                <i class="fas fa-wallet me-2"></i>Net Salary
+                            </th>
+                            <th class="sortable" data-sort="date">
+                                <i class="fas fa-calendar me-2"></i>Effective Date
+                            </th>
+                            <th class="text-center">
+                                <i class="fas fa-cogs me-2"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for salary in salaries %}
+                        <tr class="salary-row" data-salary-id="{{ salary[0] }}">
+                            <td>
+                                <span class="badge bg-light text-dark fw-bold">#SAL-{{ salary[0] }}</span>
+                            </td>
+                            <td>
+                                <div class="employee-badge">
+                                    <i class="fas fa-user-tie"></i>
+                                    {{ salary[1] }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="salary-amount">{{ format_currency(salary[2], 'INR') }}</span>
+                            </td>
+                            <td>
+                                <span class="salary-amount positive-amount">
+                                    <i class="fas fa-arrow-up me-1"></i>{{ format_currency(salary[3], 'INR') }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="salary-amount negative-amount">
+                                    <i class="fas fa-arrow-down me-1"></i>{{ format_currency(salary[4], 'INR') }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="net-salary">{{ format_currency(salary[5], 'INR') }}</span>
+                            </td>
+                            <td>
+                                <i class="fas fa-calendar-alt text-muted me-2"></i>
+                                {{ salary[6].strftime('%d %b %Y') if salary[6] else 'N/A' }}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-info btn-sm" onclick="viewSalaryDetails({{ salary[0] }})" 
+                                            data-bs-toggle="tooltip" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-warning btn-sm" onclick="editSalary({{ salary[0] }})" 
+                                            data-bs-toggle="tooltip" title="Edit Salary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteSalary({{ salary[0] }})" 
+                                            data-bs-toggle="tooltip" title="Delete Salary">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Record count display -->
+                <div class="record-count-display text-muted small mt-2 px-3 pb-3">
+                    Showing {{ salaries|length }} salary records
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Add Salary Modal -->
+<div class="modal fade" id="addSalaryModal" tabindex="-1" aria-labelledby="addSalaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSalaryModalLabel">
+                    <i class="fas fa-plus me-2"></i>Add New Salary Record
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="/add_salary">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="employee_id" class="form-label fw-semibold">
+                                <i class="fas fa-user me-2 text-primary"></i>Employee
+                            </label>
+                            <select name="employee_id" id="employee_id" class="form-select" required>
+                                <option value="">Select Employee</option>
+                                {% for employee in employees %}
+                                <option value="{{ employee[0] }}">{{ employee[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="effective_date" class="form-label fw-semibold">
+                                <i class="fas fa-calendar me-2 text-primary"></i>Effective Date
+                            </label>
+                            <input type="date" name="effective_date" id="effective_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="basic_salary" class="form-label fw-semibold">
+                                <i class="fas fa-rupee-sign me-2 text-success"></i>Basic Salary
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="basic_salary" id="basic_salary" 
+                                       class="form-control" placeholder="Enter basic salary" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="allowances" class="form-label fw-semibold">
+                                <i class="fas fa-plus me-2 text-info"></i>Total Allowances
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="allowances" id="allowances" 
+                                       class="form-control" placeholder="Enter total allowances" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="deductions" class="form-label fw-semibold">
+                                <i class="fas fa-minus me-2 text-danger"></i>Total Deductions
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="deductions" id="deductions" 
+                                       class="form-control" placeholder="Enter total deductions" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-wallet me-2 text-success"></i>Net Salary
+                            </label>
+                            <div class="form-control" id="netSalaryDisplay" style="background: #f8f9fa;">
+                                ₹0.00
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Salary Breakdown Preview -->
+                    <div class="salary-breakdown mt-4">
+                        <h6 class="mb-3"><i class="fas fa-calculator me-2"></i>Salary Breakdown</h6>
+                        <div class="breakdown-item">
+                            <span>Basic Salary</span>
+                            <span id="previewBasic">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>+ Allowances</span>
+                            <span id="previewAllowances" class="text-success">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>- Deductions</span>
+                            <span id="previewDeductions" class="text-danger">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span><strong>Net Salary</strong></span>
+                            <span id="previewNet" class="text-success"><strong>₹0.00</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Salary Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Salary Details Modal -->
+<div class="modal fade" id="salaryDetailsModal" tabindex="-1" aria-labelledby="salaryDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="salaryDetailsModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>Salary Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="salaryDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Salary Modal -->
+<div class="modal fade" id="editSalaryModal" tabindex="-1" aria-labelledby="editSalaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSalaryModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Salary Record
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="/update_salary" id="editSalaryForm">
+                <input type="hidden" name="salary_id" id="edit_salary_id">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="edit_employee_id" class="form-label fw-semibold">
+                                <i class="fas fa-user me-2 text-primary"></i>Employee
+                            </label>
+                            <select name="employee_id" id="edit_employee_id" class="form-select" required>
+                                <option value="">Select Employee</option>
+                                {% for employee in employees %}
+                                <option value="{{ employee[0] }}">{{ employee[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_effective_date" class="form-label fw-semibold">
+                                <i class="fas fa-calendar me-2 text-primary"></i>Effective Date
+                            </label>
+                            <input type="date" name="effective_date" id="edit_effective_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_basic_salary" class="form-label fw-semibold">
+                                <i class="fas fa-rupee-sign me-2 text-success"></i>Basic Salary
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="basic_salary" id="edit_basic_salary" 
+                                       class="form-control" placeholder="Enter basic salary" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_allowances" class="form-label fw-semibold">
+                                <i class="fas fa-plus me-2 text-info"></i>Total Allowances
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="allowances" id="edit_allowances" 
+                                       class="form-control" placeholder="Enter total allowances" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_deductions" class="form-label fw-semibold">
+                                <i class="fas fa-minus me-2 text-danger"></i>Total Deductions
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="0.01" name="deductions" id="edit_deductions" 
+                                       class="form-control" placeholder="Enter total deductions" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-wallet me-2 text-success"></i>Net Salary
+                            </label>
+                            <div class="form-control" id="editNetSalaryDisplay" style="background: #f8f9fa;">
+                                ₹0.00
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Salary Breakdown Preview -->
+                    <div class="salary-breakdown mt-4">
+                        <h6 class="mb-3"><i class="fas fa-calculator me-2"></i>Salary Breakdown</h6>
+                        <div class="breakdown-item">
+                            <span>Basic Salary</span>
+                            <span id="editPreviewBasic">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>+ Allowances</span>
+                            <span id="editPreviewAllowances" class="text-success">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>- Deductions</span>
+                            <span id="editPreviewDeductions" class="text-danger">₹0.00</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span><strong>Net Salary</strong></span>
+                            <span id="editPreviewNet" class="text-success"><strong>₹0.00</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Update Salary Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let salaryData = {{ salaries | tojson }};
+
+// Initialize salary management functionality
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSalaryManagement();
+    setupEventListeners();
+    initializeTooltips();
+    updateRecordCount();
+});
+
+function initializeSalaryManagement() {
+    setupSalaryCalculator();
+    setupSorting();
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Search functionality
+    document.getElementById('salarySearch').addEventListener('input', handleSearch);
+    
+    // Filter dropdowns
+    document.getElementById('departmentFilter').addEventListener('change', handleFilter);
+    document.getElementById('salaryRangeFilter').addEventListener('change', handleFilter);
+    document.getElementById('sortBy').addEventListener('change', handleSort);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+}
+
+// Setup salary calculator in modal
+function setupSalaryCalculator() {
+    const basicInput = document.getElementById('basic_salary');
+    const allowancesInput = document.getElementById('allowances');
+    const deductionsInput = document.getElementById('deductions');
+    
+    if (basicInput && allowancesInput && deductionsInput) {
+        [basicInput, allowancesInput, deductionsInput].forEach(input => {
+            input.addEventListener('input', calculateNetSalary);
+        });
+    }
+}
+
+// Calculate net salary in real-time
+function calculateNetSalary() {
+    const basic = parseFloat(document.getElementById('basic_salary').value) || 0;
+    const allowances = parseFloat(document.getElementById('allowances').value) || 0;
+    const deductions = parseFloat(document.getElementById('deductions').value) || 0;
+    const netSalary = basic + allowances - deductions;
+    
+    // Update display
+    document.getElementById('netSalaryDisplay').textContent = formatCurrency(netSalary);
+    
+    // Update preview
+    document.getElementById('previewBasic').textContent = formatCurrency(basic);
+    document.getElementById('previewAllowances').textContent = formatCurrency(allowances);
+    document.getElementById('previewDeductions').textContent = formatCurrency(deductions);
+    document.getElementById('previewNet').textContent = formatCurrency(netSalary);
+}
+
+// Format currency helper
+function formatCurrency(amount) {
+    return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Search functionality
+function handleSearch() {
+    const searchTerm = document.getElementById('salarySearch').value.toLowerCase();
+    const rows = document.querySelectorAll('.salary-row');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const shouldShow = text.includes(searchTerm);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    
+    updateRecordCount();
+}
+
+// Filter functionality
+function handleFilter() {
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const salaryRangeFilter = document.getElementById('salaryRangeFilter').value;
+    const rows = document.querySelectorAll('.salary-row');
+    
+    rows.forEach(row => {
+        let shouldShow = true;
+        
+        // Salary range filter
+        if (salaryRangeFilter) {
+            const netSalaryText = row.querySelector('.net-salary').textContent.replace(/[₹,]/g, '');
+            const netSalary = parseFloat(netSalaryText);
+            
+            const [min, max] = salaryRangeFilter.includes('+') 
+                ? [parseInt(salaryRangeFilter.replace('+', '')), Infinity]
+                : salaryRangeFilter.split('-').map(val => parseInt(val));
+            
+            shouldShow = shouldShow && (netSalary >= min && netSalary <= max);
+        }
+        
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    
+    updateRecordCount();
+}
+
+// Sort functionality
+function handleSort() {
+    const sortBy = document.getElementById('sortBy').value;
+    const tbody = document.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('.salary-row'));
+    
+    rows.sort((a, b) => {
+        switch(sortBy) {
+            case 'name':
+                return a.querySelector('.employee-badge').textContent.trim()
+                    .localeCompare(b.querySelector('.employee-badge').textContent.trim());
+            case 'salary-asc':
+                return parseFloat(a.querySelector('.net-salary').textContent.replace(/[₹,]/g, '')) -
+                       parseFloat(b.querySelector('.net-salary').textContent.replace(/[₹,]/g, ''));
+            case 'salary-desc':
+                return parseFloat(b.querySelector('.net-salary').textContent.replace(/[₹,]/g, '')) -
+                       parseFloat(a.querySelector('.net-salary').textContent.replace(/[₹,]/g, ''));
+            case 'date':
+                const dateA = new Date(a.cells[6].textContent.trim());
+                const dateB = new Date(b.cells[6].textContent.trim());
+                return dateB - dateA;
+            default:
+                return 0;
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Setup sorting for table headers
+function setupSorting() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', () => {
+            const sortType = header.dataset.sort;
+            // Update sort dropdown to match
+            document.getElementById('sortBy').value = sortType === 'net' ? 'salary-desc' : 
+                                                   sortType === 'employee' ? 'name' : 'date';
+            handleSort();
+        });
+    });
+}
+
+// Clear all filters
+function clearFilters() {
+    document.getElementById('salarySearch').value = '';
+    document.getElementById('departmentFilter').value = '';
+    document.getElementById('salaryRangeFilter').value = '';
+    document.getElementById('sortBy').value = 'name';
+    
+    document.querySelectorAll('.salary-row').forEach(row => {
+        row.style.display = '';
+    });
+    
+    updateRecordCount();
+}
+
+// Update record count display
+function updateRecordCount() {
+    const visibleRows = document.querySelectorAll('.salary-row:not([style*="display: none"])');
+    const totalRows = document.querySelectorAll('.salary-row');
+    const recordCountElement = document.querySelector('.record-count-display');
+    
+    if (recordCountElement) {
+        if (visibleRows.length === totalRows.length) {
+            recordCountElement.textContent = `Showing ${visibleRows.length} salary records`;
+        } else {
+            recordCountElement.textContent = `Showing ${visibleRows.length} of ${totalRows.length} salary records`;
+        }
+    }
+}
+
+// Keyboard shortcuts
+function handleKeyboardShortcuts(event) {
+    // Ctrl+F for search
+    if (event.ctrlKey && event.key === 'f') {
+        event.preventDefault();
+        document.getElementById('salarySearch').focus();
+    }
+    
+    // Escape to clear search
+    if (event.key === 'Escape') {
+        clearFilters();
+    }
+    
+    // Ctrl+N for new salary
+    if (event.ctrlKey && event.key === 'n') {
+        event.preventDefault();
+        new bootstrap.Modal(document.getElementById('addSalaryModal')).show();
+    }
+}
+
+// View salary details
+function viewSalaryDetails(salaryId) {
+    const modalElement = document.getElementById('salaryDetailsModal');
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
+    
+    // Reset content to loading state
+    document.getElementById('salaryDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Handle focus management for accessibility
+    modalElement.addEventListener('shown.bs.modal', function () {
+        // Focus management is handled by Bootstrap automatically
+        const firstFocusable = modalElement.querySelector('.btn-close');
+        if (firstFocusable) {
+            firstFocusable.focus();
+        }
+    }, { once: true });
+    
+    // Fetch salary details via AJAX
+    fetch(`/api/salary/${salaryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('salaryDetailsContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-semibold mb-3">Employee Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Name:</strong></td><td>${data.salary.employee_name}</td></tr>
+                                <tr><td><strong>Employee ID:</strong></td><td>#EMP-${data.salary.employee_id}</td></tr>
+                                <tr><td><strong>Effective Date:</strong></td><td>${data.salary.effective_date_display || data.salary.effective_date}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-semibold mb-3">Salary Breakdown</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Basic Salary:</strong></td><td class="text-end">${formatCurrency(data.salary.basic_salary)}</td></tr>
+                                <tr><td><strong>Allowances:</strong></td><td class="text-end text-success">${formatCurrency(data.salary.allowances)}</td></tr>
+                                <tr><td><strong>Deductions:</strong></td><td class="text-end text-danger">${formatCurrency(data.salary.deductions)}</td></tr>
+                                <tr class="table-success"><td><strong>Net Salary:</strong></td><td class="text-end"><strong>${formatCurrency(data.salary.net_salary)}</strong></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('salaryDetailsContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading salary details: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('salaryDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading salary details. Please try again.
+                </div>
+            `;
+        });
+}
+
+// Edit salary
+function editSalary(salaryId) {
+    // Fetch salary details first
+    fetch(`/api/salary/${salaryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const salary = data.salary;
+                
+                // Populate edit form
+                document.getElementById('edit_salary_id').value = salary.id;
+                document.getElementById('edit_employee_id').value = salary.employee_id;
+                document.getElementById('edit_basic_salary').value = salary.basic_salary;
+                document.getElementById('edit_allowances').value = salary.allowances || 0;
+                document.getElementById('edit_deductions').value = salary.deductions || 0;
+                
+                // Set effective date (now we get ISO format directly from API)
+                if (salary.effective_date) {
+                    document.getElementById('edit_effective_date').value = salary.effective_date;
+                }
+                
+                // Calculate and display net salary
+                calculateEditNetSalary();
+                
+                // Setup calculator for edit modal
+                setupEditSalaryCalculator();
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('editSalaryModal'));
+                modal.show();
+            } else {
+                showNotification(`Error loading salary details: ${data.error}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error loading salary details. Please try again.', 'danger');
+        });
+}
+
+// Setup salary calculator for edit modal
+function setupEditSalaryCalculator() {
+    const basicInput = document.getElementById('edit_basic_salary');
+    const allowancesInput = document.getElementById('edit_allowances');
+    const deductionsInput = document.getElementById('edit_deductions');
+    
+    if (basicInput && allowancesInput && deductionsInput) {
+        // Remove existing listeners to avoid duplicates
+        const newBasicInput = basicInput.cloneNode(true);
+        const newAllowancesInput = allowancesInput.cloneNode(true);
+        const newDeductionsInput = deductionsInput.cloneNode(true);
+        
+        basicInput.parentNode.replaceChild(newBasicInput, basicInput);
+        allowancesInput.parentNode.replaceChild(newAllowancesInput, allowancesInput);
+        deductionsInput.parentNode.replaceChild(newDeductionsInput, deductionsInput);
+        
+        // Add new listeners
+        [newBasicInput, newAllowancesInput, newDeductionsInput].forEach(input => {
+            input.addEventListener('input', calculateEditNetSalary);
+        });
+    }
+}
+
+// Calculate net salary for edit modal
+function calculateEditNetSalary() {
+    const basic = parseFloat(document.getElementById('edit_basic_salary').value) || 0;
+    const allowances = parseFloat(document.getElementById('edit_allowances').value) || 0;
+    const deductions = parseFloat(document.getElementById('edit_deductions').value) || 0;
+    const netSalary = basic + allowances - deductions;
+    
+    // Update display
+    document.getElementById('editNetSalaryDisplay').textContent = formatCurrency(netSalary);
+    
+    // Update preview
+    document.getElementById('editPreviewBasic').textContent = formatCurrency(basic);
+    document.getElementById('editPreviewAllowances').textContent = formatCurrency(allowances);
+    document.getElementById('editPreviewDeductions').textContent = formatCurrency(deductions);
+    document.getElementById('editPreviewNet').textContent = formatCurrency(netSalary);
+}
+
+// Delete salary
+function deleteSalary(salaryId) {
+    if (confirm('Are you sure you want to delete this salary record? This action cannot be undone.')) {
+        window.location.href = `/delete_salary/${salaryId}`;
+    }
+}
+
+// Export salary data
+function exportSalaryData() {
+    window.open('/salaries/export', '_blank');
+}
+
+// Initialize tooltips
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// Utility Functions
+function showNotification(message, type = 'info') {
+    // Create toast notification
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : 'primary'} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'success' ? 'check' : type === 'danger' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation' : 'info'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    // Add to toast container or create one
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+</script>
+
 {% endblock %}

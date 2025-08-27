@@ -14,6 +14,10 @@
             --bs-primary-rgb: 255, 107, 107;
             --bs-secondary: #4ecdc4;
             --bs-secondary-rgb: 78, 205, 196;
+            --bs-success: #28a745;
+            --bs-warning: #ffc107;
+            --bs-danger: #dc3545;
+            --bs-info: #17a2b8;
             --bs-dark: #1a1a1a;
             --bs-light: #f8f9fa;
             --sidebar-bg: #ffffff;
@@ -24,8 +28,10 @@
 
         body {
             background-color: var(--body-bg);
+            font-size: 14px;
         }
 
+        /* Sidebar Styles */
         .sidebar {
             position: fixed;
             top: 0;
@@ -36,6 +42,8 @@
             border-right: 1px solid var(--border-color);
             padding: 1.5rem 1rem;
             transition: all 0.3s ease;
+            overflow-y: auto;
+            z-index: 1000;
         }
 
         .sidebar-brand {
@@ -43,9 +51,27 @@
             font-size: 1.5rem;
             color: var(--bs-dark);
             text-decoration: none;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: block;
         }
         .sidebar-brand .fa-gem {
             color: var(--bs-primary);
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            padding-left: 1rem;
         }
 
         .sidebar .nav-link {
@@ -55,123 +81,353 @@
             border-radius: 0.5rem;
             margin-bottom: 0.25rem;
             transition: all 0.2s ease-in-out;
+            position: relative;
+            font-size: 0.9rem;
         }
         .sidebar .nav-link:hover {
-            background-color: var(--bs-primary);
-            color: white;
-            transform: translateX(5px);
+            background-color: rgba(255, 107, 107, 0.1);
+            color: var(--bs-primary);
+            transform: translateX(3px);
         }
         .sidebar .nav-link.active {
             background-color: var(--bs-primary);
             color: white;
             font-weight: 600;
         }
+        .sidebar .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: -1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 100%;
+            background-color: var(--bs-primary);
+            border-radius: 2px;
+        }
         .sidebar .nav-link i {
             width: 20px;
             margin-right: 0.75rem;
+            text-align: center;
         }
 
+        /* Main Content */
         .main-content {
             margin-left: 260px;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .main-header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .breadcrumb {
+            background: none;
+            padding: 0;
+            margin: 0;
+            font-size: 0.85rem;
+        }
+
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: ">";
+            color: #6c757d;
+        }
+
+        .main-body {
             padding: 2rem;
         }
 
+        /* Cards */
         .card {
             border: none;
             border-radius: 1rem;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
+            background-color: var(--card-bg);
         }
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
         }
 
+        /* Buttons */
         .btn {
             border-radius: 0.5rem;
             font-weight: 600;
             padding: 0.6rem 1.2rem;
+            font-size: 0.875rem;
         }
         
+        /* Page Headers */
         .page-header {
             margin-bottom: 2rem;
         }
         .page-title {
             font-weight: 700;
-            font-size: 2rem;
+            font-size: 1.75rem;
+            color: var(--bs-dark);
         }
         .page-subtitle {
             color: #6c757d;
+            margin-top: 0.25rem;
         }
+
+        /* Status Badges */
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.4em 0.8em;
+        }
+
+        /* Tables */
+        .table th {
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 0.75rem;
+        }
+
+        /* Loading States */
+        .loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--bs-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .main-header {
+                padding: 1rem;
+            }
+            .main-body {
+                padding: 1rem;
+            }
+        }
+
+        /* Help tooltips */
+        .help-tooltip {
+            color: #6c757d;
+            cursor: help;
+            margin-left: 0.25rem;
+        }
+
+        /* Form improvements */
+        .form-label {
+            font-weight: 600;
+            color: var(--bs-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--bs-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
+        }
+
+        /* Stats cards */
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 1rem;
+            color: white;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .stats-card.primary { background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%); }
+        .stats-card.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .stats-card.warning { background: linear-gradient(135deg, #ffc107 0%, #ffda6a 100%); }
+        .stats-card.danger { background: linear-gradient(135deg, #dc3545 0%, #f8d7da 100%); }
+        .stats-card.info { background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); }
 
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <a href="/" class="sidebar-brand d-flex align-items-center mb-4">
+        <a href="/" class="sidebar-brand d-flex align-items-center">
             <i class="fas fa-gem me-2"></i>
             <span>Lumorange</span>
         </a>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="/"><i class="fas fa-tachometer-alt"></i>Dashboard</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/employees"><i class="fas fa-users"></i>Employees</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/departments"><i class="fas fa-building"></i>Departments</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/projects"><i class="fas fa-project-diagram"></i>Projects</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/clients"><i class="fas fa-handshake"></i>Clients</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/invoices"><i class="fas fa-file-invoice-dollar"></i>Invoices</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/expenses"><i class="fas fa-receipt"></i>Expenses</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/salaries"><i class="fas fa-rupee-sign"></i>Salaries</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/payroll"><i class="fas fa-calculator"></i>Payroll</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/agreements"><i class="fas fa-file-contract"></i>Legal & Compliance</a>
-            </li>
-        </ul>
+        
+        <!-- Core Business -->
+        <div class="nav-section">
+            <div class="nav-section-title">Core Business</div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/" data-bs-toggle="tooltip" title="Overview and key metrics">
+                        <i class="fas fa-tachometer-alt"></i>Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/clients" data-bs-toggle="tooltip" title="Manage client information and relationships">
+                        <i class="fas fa-handshake"></i>Clients
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/projects" data-bs-toggle="tooltip" title="Track projects and deliverables">
+                        <i class="fas fa-project-diagram"></i>Projects
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/invoices" data-bs-toggle="tooltip" title="Create and manage invoices">
+                        <i class="fas fa-file-invoice-dollar"></i>Invoices
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Human Resources -->
+        <div class="nav-section">
+            <div class="nav-section-title">Human Resources</div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/employees" data-bs-toggle="tooltip" title="Employee information and profiles">
+                        <i class="fas fa-users"></i>Employees
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/departments" data-bs-toggle="tooltip" title="Organizational structure">
+                        <i class="fas fa-building"></i>Departments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/salaries" data-bs-toggle="tooltip" title="Salary management and structures">
+                        <i class="fas fa-rupee-sign"></i>Salaries
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/payroll" data-bs-toggle="tooltip" title="Process payroll runs and payments">
+                        <i class="fas fa-calculator"></i>Payroll
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Finance & Operations -->
+        <div class="nav-section">
+            <div class="nav-section-title">Finance & Operations</div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/expenses" data-bs-toggle="tooltip" title="Track and manage expenses">
+                        <i class="fas fa-receipt"></i>Expenses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/agreements" data-bs-toggle="tooltip" title="Legal documents and compliance">
+                        <i class="fas fa-file-contract"></i>Legal & Compliance
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 
     <main class="main-content">
+        <!-- Header with breadcrumbs -->
+        <div class="main-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="/" class="text-decoration-none">
+                                    <i class="fas fa-home me-1"></i>Home
+                                </a>
+                            </li>
+                            {% block breadcrumb %}{% endblock %}
+                        </ol>
+                    </nav>
+                    <h1 class="h4 mb-0 text-dark">{% block page_title %}Dashboard{% endblock %}</h1>
+                    {% block page_subtitle %}{% endblock %}
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ moment().format('MMM DD, YYYY') if moment else 'Aug 27, 2025' }}
+                        </small>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-link text-decoration-none" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-lg text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">System Admin</h6></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-                {% for category, message in messages %}
-                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-                        <div class="toast-header">
-                            <strong class="me-auto">Notification</strong>
-                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                <div class="main-body">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' or category == 'danger' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                                <div>{{ message }}</div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
-                        <div class="toast-body">
-                            {{ message }}
-                        </div>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
         
-        {% block content %}{% endblock %}
+        <!-- Main Content -->
+        <div class="main-body">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Active navigation highlighting
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll('.sidebar .nav-link');
             navLinks.forEach(link => {
@@ -179,7 +435,134 @@
                     link.classList.add('active');
                 }
             });
+
+            // Auto-dismiss alerts after 5 seconds
+            const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+
+            // Form validation feedback
+            const forms = document.querySelectorAll('form[data-validate="true"]');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    if (!form.checkValidity()) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Show first invalid field
+                        const firstInvalid = form.querySelector(':invalid');
+                        if (firstInvalid) {
+                            firstInvalid.focus();
+                            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                    form.classList.add('was-validated');
+                });
+            });
+
+            // Loading states for buttons
+            const loadingBtns = document.querySelectorAll('[data-loading="true"]');
+            loadingBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.add('loading');
+                    this.disabled = true;
+                    
+                    // Re-enable after 3 seconds (fallback)
+                    setTimeout(() => {
+                        this.classList.remove('loading');
+                        this.disabled = false;
+                    }, 3000);
+                });
+            });
+
+            // Confirmation dialogs
+            const confirmBtns = document.querySelectorAll('[data-confirm]');
+            confirmBtns.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const message = this.getAttribute('data-confirm');
+                    if (!confirm(message)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+            });
+
+            // Auto-format currency inputs
+            const currencyInputs = document.querySelectorAll('.currency-input');
+            currencyInputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.value) {
+                        const value = parseFloat(this.value.replace(/[^\d.-]/g, ''));
+                        if (!isNaN(value)) {
+                            this.value = '₹' + value.toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
+                });
+            });
+
+            // Success animation for forms
+            window.showSuccess = function(message) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alert.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <div>${message}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alert);
+                
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 4000);
+            };
+
+            // Error handling
+            window.showError = function(message) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+                alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alert.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div>${message}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alert);
+            };
         });
+
+        // Global utility functions
+        window.formatCurrency = function(amount, currency = 'INR') {
+            const symbols = { 'INR': '₹', 'USD': '$', 'EUR': '€', 'GBP': '£' };
+            const symbol = symbols[currency] || '₹';
+            return symbol + parseFloat(amount || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        };
+
+        window.formatDate = function(date) {
+            return new Date(date).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        };
     </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,55 +1,671 @@
-{% extends "base_new.html" %}
+{% extends "base.html" %}
 
-{% block title %}Invoices - Lumorange Management{% endblock %}
+{% block title %}Invoice Management - Lumorange Management{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Invoices</h1>
-        <p class="page-subtitle">Manage all your client invoices.</p>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <div class="d-flex align-items-center">
+                    <h1 class="page-title">💼 Invoice Management</h1>
+                    <span class="badge bg-light text-dark ms-3" title="Keyboard Shortcuts: Ctrl+N (New Invoice), Ctrl+K (Search), ESC (Close Modal)">
+                        <i class="fas fa-keyboard me-1"></i>
+                        Shortcuts
+                    </span>
+                </div>
+                <p class="page-subtitle">Create, manage, and track all your client invoices with professional tools.</p>
+            </div>
+            <div class="page-actions">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-secondary" onclick="exportInvoices()" title="Export Invoices">
+                        <i class="fas fa-download me-2"></i>Export
+                    </button>
+                    <button class="btn btn-outline-info" onclick="generateReport()" title="Generate Report">
+                        <i class="fas fa-chart-bar me-2"></i>Report
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" title="Create New Invoice">
+                        <i class="fas fa-plus me-2"></i>New Invoice
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-    <a href="/invoices/add" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Create Invoice
-    </a>
+
+    <!-- Statistics Dashboard -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon bg-primary text-white me-3">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ statistics.total }}</h3>
+                            <p class="text-muted mb-0">Total Invoices</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon bg-success text-white me-3">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ statistics.paid }}</h3>
+                            <p class="text-muted mb-0">Paid Invoices</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon bg-warning text-white me-3">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ statistics.pending }}</h3>
+                            <p class="text-muted mb-0">Pending Payment</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon bg-danger text-white me-3">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ statistics.overdue }}</h3>
+                            <p class="text-muted mb-0">Overdue Invoices</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card financial-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
+                    <h4 class="text-success">{{ format_currency(statistics.total_revenue) }}</h4>
+                    <p class="text-muted">Total Revenue</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card financial-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-hourglass-half fa-2x text-warning mb-2"></i>
+                    <h4 class="text-warning">{{ format_currency(statistics.outstanding) }}</h4>
+                    <p class="text-muted">Outstanding Amount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card financial-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-month fa-2x text-info mb-2"></i>
+                    <h4 class="text-info">{{ format_currency(statistics.this_month) }}</h4>
+                    <p class="text-muted">This Month</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="filters-section mb-4">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="invoiceSearch" 
+                           placeholder="Search by invoice #, client, or amount..." 
+                           onkeyup="filterInvoices()">
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <select class="form-select" id="statusFilter" onchange="filterInvoices()">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="paid">Paid</option>
+                    <option value="pending">Pending</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <select class="form-select" id="clientFilter" onchange="filterInvoices()">
+                    <option value="">All Clients</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}">{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <select class="form-select" id="dateFilter" onchange="filterInvoices()">
+                    <option value="">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="this_week">This Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_quarter">This Quarter</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>Clear
+                </button>
+            </div>
+        </div>
+        
+        <div class="mt-3 d-flex align-items-center justify-content-between">
+            <span id="searchResults" class="badge bg-info">{{ invoices|length }} invoices</span>
+            <div class="btn-group" role="group">
+                <button class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAll()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="toggleTableDensity()" title="Toggle Table Density">
+                    <i class="fas fa-compress-alt" id="densityIcon"></i>
+                    <span id="densityText">Compact</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions (Hidden by default) -->
+    <div class="bulk-actions alert alert-info" style="display: none;">
+        <div class="d-flex align-items-center justify-content-between">
+            <span><i class="fas fa-check-square me-2"></i><strong id="selectedCount">0</strong> invoices selected</span>
+            <div class="btn-group" role="group">
+                <button class="btn btn-sm btn-outline-success" onclick="bulkMarkAsPaid()">
+                    <i class="fas fa-check me-1"></i>Mark as Paid
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="bulkMarkAsSent()">
+                    <i class="fas fa-paper-plane me-1"></i>Mark as Sent
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="bulkExport()">
+                    <i class="fas fa-download me-1"></i>Export Selected
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                    <i class="fas fa-trash me-1"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="invoices-container">
+        <div class="card table-container">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="invoicesTable">
+                        <thead>
+                            <tr>
+                                <th width="40" class="bg-gradient text-white border-0">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(1)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-hashtag me-2"></i>Invoice #</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(2)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-user-tie me-2"></i>Client</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(3)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-calendar me-2"></i>Date</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(4)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-calendar-check me-2"></i>Due Date</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(5)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-dollar-sign me-2"></i>Amount</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0 sortable" onclick="sortTable(6)">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-flag me-2"></i>Status</span>
+                                        <i class="fas fa-sort sort-icon"></i>
+                                    </div>
+                                </th>
+                                <th class="bg-gradient text-white border-0">
+                                    <i class="fas fa-bolt me-2"></i>Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                            <tr class="invoice-row" 
+                                data-invoice-id="{{ invoice.id }}" 
+                                data-status="{{ invoice.status }}"
+                                data-client-id="{{ invoice.client_id }}"
+                                data-search-text="{{ (invoice.invoice_number + ' ' + (invoice.client_name or '') + ' ' + (invoice.total_amount|string))|lower }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input invoice-select" value="{{ invoice.id }}" onchange="updateBulkActions()">
+                                </td>
+                                <td class="invoice-number-cell">
+                                    <div class="d-flex align-items-center">
+                                        <div class="invoice-icon me-3">
+                                            <div class="invoice-status-indicator {{ 'bg-success' if invoice.status == 'paid' else 'bg-warning' if invoice.status == 'sent' else 'bg-info' if invoice.status == 'pending' else 'bg-danger' if invoice.status == 'overdue' else 'bg-secondary' }}">
+                                                <i class="fas {{ 'fa-check' if invoice.status == 'paid' else 'fa-paper-plane' if invoice.status == 'sent' else 'fa-clock' if invoice.status == 'pending' else 'fa-exclamation' if invoice.status == 'overdue' else 'fa-file' }}"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold invoice-number">
+                                                <a href="/invoices/{{ invoice.id }}" class="text-decoration-none">
+                                                    {{ invoice.invoice_number }}
+                                                </a>
+                                            </div>
+                                            <div class="text-muted small">
+                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                Created {{ invoice.created_date.strftime('%b %d') if invoice.created_date else 'N/A' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="client-cell">
+                                    <div class="client-info">
+                                        <div class="fw-semibold">{{ invoice.client_name or 'Unknown Client' }}</div>
+                                        {% if invoice.project_id %}
+                                            <div class="text-muted small">
+                                                <i class="fas fa-project-diagram me-1"></i>
+                                                Project #{{ invoice.project_id }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="date-cell">
+                                    <div class="date-info">
+                                        <div class="fw-semibold">{{ invoice.invoice_date.strftime('%b %d, %Y') if invoice.invoice_date else 'N/A' }}</div>
+                                        <div class="text-muted small">{{ invoice.invoice_date.strftime('%A') if invoice.invoice_date else '' }}</div>
+                                    </div>
+                                </td>
+                                <td class="due-date-cell">
+                                    {% if invoice.due_date %}
+                                        {% set days_until_due = (invoice.due_date - current_date).days %}
+                                        <div class="due-date-info">
+                                            <div class="fw-semibold {{ 'text-danger' if days_until_due < 0 else 'text-warning' if days_until_due <= 7 else 'text-success' }}">
+                                                {{ invoice.due_date.strftime('%b %d, %Y') }}
+                                            </div>
+                                            <div class="text-muted small">
+                                                {% if days_until_due < 0 %}
+                                                    <i class="fas fa-exclamation-triangle text-danger me-1"></i>{{ days_until_due|abs }} days overdue
+                                                {% elif days_until_due == 0 %}
+                                                    <i class="fas fa-clock text-warning me-1"></i>Due today
+                                                {% elif days_until_due <= 7 %}
+                                                    <i class="fas fa-clock text-warning me-1"></i>Due in {{ days_until_due }} days
+                                                {% else %}
+                                                    <i class="fas fa-check-circle text-success me-1"></i>{{ days_until_due }} days remaining
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">No due date</span>
+                                    {% endif %}
+                                </td>
+                                <td class="amount-cell text-end">
+                                    <div class="amount-info">
+                                        <div class="fw-bold amount-total">
+                                            {{ format_currency(invoice.total_amount or 0) }}
+                                        </div>
+                                        {% if invoice.subtotal_amount and invoice.tax_amount %}
+                                            <div class="text-muted small">
+                                                Subtotal: {{ format_currency(invoice.subtotal) }}
+                                                {% if invoice.tax_rate %}+ Tax ({{ invoice.tax_rate }}%){% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="status-cell">
+                                    <div class="status-container">
+                                        {% set status_config = {
+                                            'draft': {'class': 'bg-secondary', 'icon': 'fa-file-alt', 'text': 'Draft'},
+                                            'sent': {'class': 'bg-primary', 'icon': 'fa-paper-plane', 'text': 'Sent'},
+                                            'paid': {'class': 'bg-success', 'icon': 'fa-check-circle', 'text': 'Paid'},
+                                            'pending': {'class': 'bg-warning', 'icon': 'fa-clock', 'text': 'Pending'},
+                                            'overdue': {'class': 'bg-danger', 'icon': 'fa-exclamation-triangle', 'text': 'Overdue'},
+                                            'cancelled': {'class': 'bg-dark', 'icon': 'fa-times-circle', 'text': 'Cancelled'}
+                                        } %}
+                                        {% set config = status_config.get(invoice.status, status_config['draft']) %}
+                                        <span class="badge {{ config.class }} status-badge rounded-pill" onclick="quickStatusChange({{ invoice.id }}, '{{ invoice.status|e }}')">>
+                                            <i class="fas {{ config.icon }} me-1"></i>{{ config.text }}
+                                        </span>
+                                        {% if invoice.payment_date and invoice.status == 'paid' %}
+                                            <div class="text-muted small mt-1">
+                                                <i class="fas fa-check me-1"></i>Paid {{ invoice.payment_date.strftime('%b %d') }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="actions-cell">
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-info btn-action" 
+                                                onclick="toggleInvoiceDetails({{ invoice.id }})" 
+                                                title="Toggle Details"
+                                                data-bs-toggle="tooltip">
+                                            <i class="fas fa-chevron-down expand-icon"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary btn-action" 
+                                                onclick="viewInvoice({{ invoice.id }})" 
+                                                title="View Invoice"
+                                                data-bs-toggle="tooltip">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary btn-action edit-invoice-btn" 
+                                                data-invoice="{{ invoice|tojson|safe }}" 
+                                                title="Edit Invoice"
+                                                data-bs-toggle="tooltip">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success btn-action" 
+                                                onclick="downloadInvoice({{ invoice.id }})" 
+                                                title="Download PDF"
+                                                data-bs-toggle="tooltip">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-warning dropdown-toggle btn-action" 
+                                                    data-bs-toggle="dropdown" title="More Actions">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="mailto:?subject=Invoice {{ invoice.invoice_number }}&body=Please find attached invoice {{ invoice.invoice_number }}.">
+                                                    <i class="fas fa-envelope me-2"></i>Email Invoice</a></li>
+                                                <li><a class="dropdown-item" onclick="duplicateInvoice({{ invoice.id }})">
+                                                    <i class="fas fa-copy me-2"></i>Duplicate</a></li>
+                                                <li><a class="dropdown-item" onclick="convertToCreditNote({{ invoice.id }})">
+                                                    <i class="fas fa-undo me-2"></i>Convert to Credit Note</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" onclick="confirmDeleteInvoice({{ invoice.id }}, '{{ invoice.invoice_number }}')">
+                                                    <i class="fas fa-trash me-2"></i>Delete</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <!-- Expandable Invoice Details Row -->
+                            <tr class="invoice-details-row" id="details-{{ invoice.id }}" style="display: none;">
+                                <td colspan="8" class="p-0">
+                                    <div class="invoice-details-content p-4 bg-light border-top">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <h6 class="fw-bold text-primary mb-3">
+                                                    <i class="fas fa-file-invoice me-2"></i>Invoice Details
+                                                </h6>
+                                                <table class="table table-sm table-borderless">
+                                                    <tr><td><strong>Currency:</strong></td><td>{{ invoice.currency or 'INR' }}</td></tr>
+                                                    <tr><td><strong>Payment Method:</strong></td><td>{{ invoice.payment_method or 'Not specified' }}</td></tr>
+                                                    {% if invoice.discount_amount %}
+                                                    <tr><td><strong>Discount:</strong></td><td>{{ format_currency(invoice.discount_amount) }}</td></tr>
+                                                    {% endif %}
+                                                </table>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="fw-bold text-success mb-3">
+                                                    <i class="fas fa-calculator me-2"></i>Financial Breakdown
+                                                </h6>
+                                                <table class="table table-sm table-borderless">
+                                                    <tr><td><strong>Subtotal:</strong></td><td>{{ format_currency(invoice.subtotal or 0) }}</td></tr>
+                                                    {% if invoice.tax_rate %}
+                                                    <tr><td><strong>Tax Rate:</strong></td><td>{{ invoice.tax_rate }}%</td></tr>
+                                                    <tr><td><strong>Tax Amount:</strong></td><td>{{ format_currency(invoice.tax_amount or 0) }}</td></tr>
+                                                    {% endif %}
+                                                    <tr class="table-success"><td><strong>Total:</strong></td><td><strong>{{ format_currency(invoice.total_amount or 0) }}</strong></td></tr>
+                                                </table>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="fw-bold text-warning mb-3">
+                                                    <i class="fas fa-tools me-2"></i>Quick Actions
+                                                </h6>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="sendInvoiceEmail({{ invoice.id }})">
+                                                        <i class="fas fa-envelope me-1"></i>Send Email
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" onclick="recordPayment({{ invoice.id }})">
+                                                        <i class="fas fa-dollar-sign me-1"></i>Record Payment
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" onclick="addNote({{ invoice.id }})">
+                                                        <i class="fas fa-sticky-note me-1"></i>Add Note
+                                                    </button>
+                                                </div>
+                                                {% if invoice.notes %}
+                                                <div class="mt-3">
+                                                    <small class="text-muted">
+                                                        <strong>Notes:</strong><br>
+                                                        {{ invoice.notes[:100] }}{{ '...' if invoice.notes|length > 100 else '' }}
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Empty State -->
+                    {% if not invoices %}
+                    <div class="empty-state text-center py-5">
+                        <div class="empty-icon mb-3">
+                            <i class="fas fa-file-invoice fa-4x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted mb-3">No invoices found</h5>
+                        <p class="text-muted">Start by creating your first invoice to track payments and manage billing.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addInvoiceModal">
+                            <i class="fas fa-plus me-2"></i>Create First Invoice
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Invoice #</th>
-                        <th>Client</th>
-                        <th>Date</th>
-                        <th>Due Date</th>
-                        <th class="text-end">Amount</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for invoice in invoices %}
-                    <tr>
-                        <td><a href="/invoices/{{ invoice.invoice_id }}"><strong>{{ invoice.invoice_number }}</strong></a></td>
-                        <td>{{ invoice.client_name }}</td>
-                        <td>{{ invoice.invoice_date.strftime('%d %b %Y') }}</td>
-                        <td>{{ invoice.due_date.strftime('%d %b %Y') }}</td>
-                        <td class="text-end">{{ format_currency(invoice.total) }}</td>
-                        <td>
-                            {% set status_color = {'paid': 'success', 'pending': 'warning', 'overdue': 'danger', 'draft': 'secondary', 'sent': 'primary', 'cancelled': 'dark'}.get(invoice.status, 'secondary') %}
-                            <span class="badge bg-{{ status_color }}-subtle text-{{ status_color }}">
-                                {{ invoice.status|capitalize }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="/invoices/{{ invoice.invoice_id }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                            <button class="btn btn-sm btn-outline-secondary edit-invoice-btn" data-invoice="{{ invoice|tojson|safe }}"><i class="fas fa-edit"></i></button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- Add Invoice Modal -->
+<div class="modal fade" id="addInvoiceModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>Create New Invoice
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/invoices/add" method="post" id="addInvoiceForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Client *</label>
+                                <select name="client_id" class="form-select" required>
+                                    <option value="">Select a client</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}">{{ client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project (Optional)</label>
+                                <select name="project_id" class="form-select">
+                                    <option value="">Select a project</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}" data-client="{{ project.client_id }}">{{ project.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Invoice Number *</label>
+                                <input type="text" name="invoice_number" class="form-control" 
+                                       value="INV-{{ '%04d'|format((invoices|length + 1)) }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Invoice Date *</label>
+                                <input type="date" name="invoice_date" class="form-control" 
+                                       value="{{ current_date.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Due Date *</label>
+                                <input type="date" name="due_date" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Currency</label>
+                                <select name="currency" class="form-select">
+                                    <option value="INR" selected>INR - Indian Rupee (₹)</option>
+                                    <option value="USD">USD - US Dollar ($)</option>
+                                    <option value="EUR">EUR - Euro (€)</option>
+                                    <option value="GBP">GBP - British Pound (£)</option>
+                                    <option value="CAD">CAD - Canadian Dollar ($)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Tax Rate (%)</label>
+                                <input type="number" name="tax_rate" class="form-control" 
+                                       min="0" max="100" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="draft">Draft</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Invoice Items -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fas fa-list me-2"></i>Invoice Items
+                        </h6>
+                        <div id="invoiceItems">
+                            <div class="invoice-item row mb-3">
+                                <div class="col-md-5">
+                                    <input type="text" name="description[]" class="form-control" 
+                                           placeholder="Item description" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="number" name="quantity[]" class="form-control" 
+                                           placeholder="Qty" min="0.01" step="0.01" value="1" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="number" name="unit_price[]" class="form-control" 
+                                           placeholder="Unit Price" min="0.01" step="0.01" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="number" name="line_total[]" class="form-control" 
+                                           placeholder="Total" readonly>
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" 
+                                            onclick="removeInvoiceItem(this)" disabled>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addInvoiceItem()">
+                            <i class="fas fa-plus me-2"></i>Add Item
+                        </button>
+                    </div>
+                    
+                    <!-- Totals -->
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea name="notes" class="form-control" rows="3" 
+                                          placeholder="Additional notes or terms..."></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <table class="table table-sm mb-0">
+                                        <tr>
+                                            <td>Subtotal:</td>
+                                            <td class="text-end" id="subtotalDisplay">₹0.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Tax:</td>
+                                            <td class="text-end" id="taxDisplay">₹0.00</td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td><strong>Total:</strong></td>
+                                            <td class="text-end"><strong id="totalDisplay">₹0.00</strong></td>
+                                        </tr>
+                                    </table>
+                                    <input type="hidden" name="subtotal_amount" id="subtotalAmount">
+                                    <input type="hidden" name="tax_amount" id="taxAmount">
+                                    <input type="hidden" name="total_amount" id="totalAmount">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Create Invoice
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -59,24 +675,60 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Invoice Status</h5>
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Invoice
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form action="/update_invoice" method="post" id="editInvoiceForm">
                     <input type="hidden" name="invoice_id" id="edit_invoice_id">
-                    <div class="mb-3">
-                        <label class="form-label">Status</label>
-                        <select name="status" id="edit_status" class="form-select">
-                            <option value="draft">Draft</option>
-                            <option value="sent">Sent</option>
-                            <option value="paid">Paid</option>
-                            <option value="overdue">Overdue</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status *</label>
+                                <select name="status" id="edit_status" class="form-select" required>
+                                    <option value="draft">Draft</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="overdue">Overdue</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Method</label>
+                                <select name="payment_method" id="edit_payment_method" class="form-select">
+                                    <option value="">Select payment method</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="check">Check</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="credit_card">Credit Card</option>
+                                    <option value="paypal">PayPal</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Update Invoice</button>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Payment Date</label>
+                        <input type="date" name="payment_date" id="edit_payment_date" class="form-control">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Invoice
+                        </button>
                     </div>
                 </form>
             </div>
@@ -84,21 +736,1044 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteInvoiceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash me-2"></i>Delete Invoice
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+                </div>
+                <h6 class="text-center mb-3">Are you sure you want to delete this invoice?</h6>
+                <div class="alert alert-warning">
+                    <div id="invoiceToDelete"></div>
+                    <p class="mb-0 mt-2"><strong>Warning:</strong> This action cannot be undone.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>Delete Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Status Change Modal -->
+<div class="modal fade" id="quickStatusModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-flag me-2"></i>Change Status
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary" onclick="updateInvoiceStatus(currentInvoiceId, 'draft')">
+                        <i class="fas fa-file-alt me-2"></i>Draft
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="updateInvoiceStatus(currentInvoiceId, 'sent')">
+                        <i class="fas fa-paper-plane me-2"></i>Sent
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="updateInvoiceStatus(currentInvoiceId, 'pending')">
+                        <i class="fas fa-clock me-2"></i>Pending
+                    </button>
+                    <button class="btn btn-outline-success" onclick="updateInvoiceStatus(currentInvoiceId, 'paid')">
+                        <i class="fas fa-check-circle me-2"></i>Paid
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="updateInvoiceStatus(currentInvoiceId, 'overdue')">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Overdue
+                    </button>
+                    <button class="btn btn-outline-dark" onclick="updateInvoiceStatus(currentInvoiceId, 'cancelled')">
+                        <i class="fas fa-times-circle me-2"></i>Cancelled
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Event listeners for edit buttons
+// Global variables
+let allInvoices = [];
+let currentSortColumn = -1;
+let currentSortDirection = 'asc';
+let currentInvoiceId = null;
+let currentInvoiceForDeletion = null;
+let isCompactMode = false;
+
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize invoice data for filtering
+    allInvoices = Array.from(document.querySelectorAll('.invoice-row')).map(row => {
+        return {
+            element: row,
+            id: row.dataset.invoiceId,
+            status: row.dataset.status,
+            clientId: row.dataset.clientId,
+            searchText: row.dataset.searchText
+        };
+    });
+    
+    // Event listeners
     document.querySelectorAll('.edit-invoice-btn').forEach(button => {
         button.addEventListener('click', function() {
             const invoice = JSON.parse(this.dataset.invoice);
             editInvoice(invoice);
         });
     });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + K for search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            document.getElementById('invoiceSearch').focus();
+        }
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            const openModal = document.querySelector('.modal.show');
+            if (openModal) {
+                const modalInstance = bootstrap.Modal.getInstance(openModal);
+                if (modalInstance) modalInstance.hide();
+            }
+        }
+        // Ctrl/Cmd + N for new invoice
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            new bootstrap.Modal(document.getElementById('addInvoiceModal')).show();
+        }
+    });
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize invoice calculations
+    setupInvoiceCalculations();
+    
+    // Initialize search
+    updateSearchResults(allInvoices.length);
 });
 
+// Invoice Management Functions
 function editInvoice(invoice) {
-    document.getElementById('edit_invoice_id').value = invoice.invoice_id || '';
+    document.getElementById('edit_invoice_id').value = invoice.id || '';
     document.getElementById('edit_status').value = invoice.status || '';
+    document.getElementById('edit_payment_method').value = invoice.payment_method || '';
+    document.getElementById('edit_payment_date').value = invoice.payment_date || '';
+    document.getElementById('edit_notes').value = invoice.notes || '';
+    
     new bootstrap.Modal(document.getElementById('editInvoiceModal')).show();
 }
+
+function viewInvoice(invoiceId) {
+    window.location.href = `/invoices/${invoiceId}`;
+}
+
+function downloadInvoice(invoiceId) {
+    window.open(`/invoices/${invoiceId}/download`, '_blank');
+}
+
+function duplicateInvoice(invoiceId) {
+    if (confirm('Create a duplicate of this invoice?')) {
+        fetch(`/invoices/${invoiceId}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Invoice duplicated successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Error duplicating invoice: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error duplicating invoice', 'error');
+        });
+    }
+}
+
+function confirmDeleteInvoice(invoiceId, invoiceNumber) {
+    currentInvoiceForDeletion = invoiceId;
+    
+    document.getElementById('invoiceToDelete').innerHTML = `
+        <strong><i class="fas fa-file-invoice me-2"></i>Invoice: ${invoiceNumber}</strong>
+        <div class="text-muted mt-1">Invoice ID: ${invoiceId}</div>
+    `;
+    
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        deleteInvoice(invoiceId);
+    };
+    
+    new bootstrap.Modal(document.getElementById('deleteInvoiceModal')).show();
+}
+
+function deleteInvoice(invoiceId) {
+    fetch(`/delete_invoice/${invoiceId}`, {
+        method: 'GET'
+    })
+    .then(response => {
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteInvoiceModal')).hide();
+            showNotification('Invoice deleted successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error deleting invoice', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error deleting invoice', 'error');
+    });
+}
+
+// Status Management
+function quickStatusChange(invoiceId, currentStatus) {
+    currentInvoiceId = invoiceId;
+    new bootstrap.Modal(document.getElementById('quickStatusModal')).show();
+}
+
+function updateInvoiceStatus(invoiceId, newStatus) {
+    fetch(`/update_invoice_status/${invoiceId}/${newStatus}`, {
+        method: 'GET'
+    })
+    .then(response => {
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('quickStatusModal')).hide();
+            showNotification(`Invoice status updated to ${newStatus}!`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error updating invoice status', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error updating invoice status', 'error');
+    });
+}
+
+// Advanced Features
+function sendInvoiceEmail(invoiceId) {
+    const subject = `Invoice from Lumorange Management`;
+    const body = `Please find your invoice attached. Invoice ID: ${invoiceId}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function recordPayment(invoiceId) {
+    // This would typically open a payment recording modal
+    showNotification('Payment recording feature - to be implemented', 'info');
+}
+
+function addNote(invoiceId) {
+    const note = prompt('Add a note to this invoice:');
+    if (note) {
+        // Implementation for adding notes
+        showNotification('Note added successfully!', 'success');
+    }
+}
+
+function convertToCreditNote(invoiceId) {
+    if (confirm('Convert this invoice to a credit note?')) {
+        showNotification('Credit note conversion feature - to be implemented', 'info');
+    }
+}
+
+// Table Functions
+function toggleInvoiceDetails(invoiceId) {
+    const detailsRow = document.getElementById(`details-${invoiceId}`);
+    const expandIcon = document.querySelector(`button[onclick="toggleInvoiceDetails(${invoiceId})"] .expand-icon`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        expandIcon.className = 'fas fa-chevron-up expand-icon';
+        
+        // Add animation
+        const content = detailsRow.querySelector('.invoice-details-content');
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+            content.style.transition = 'all 0.3s ease';
+            content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }, 10);
+    } else {
+        const content = detailsRow.querySelector('.invoice-details-content');
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+            detailsRow.style.display = 'none';
+            expandIcon.className = 'fas fa-chevron-down expand-icon';
+        }, 300);
+    }
+}
+
+// Table sorting functionality
+function sortTable(columnIndex) {
+    const table = document.getElementById('invoicesTable');
+    const tbody = table.getElementsByTagName('tbody')[0];
+    const rows = Array.from(tbody.getElementsByTagName('tr')).filter(row => row.classList.contains('invoice-row'));
+    
+    // Determine sort direction
+    if (currentSortColumn === columnIndex) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortDirection = 'asc';
+        currentSortColumn = columnIndex;
+    }
+    
+    // Update sort icons
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.className = 'fas fa-sort sort-icon';
+    });
+    
+    const currentIcon = document.querySelectorAll('.sortable')[columnIndex - 1].querySelector('.sort-icon');
+    currentIcon.className = `fas fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} sort-icon`;
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal = '', bVal = '';
+        
+        switch(columnIndex) {
+            case 1: // Invoice number
+                aVal = a.querySelector('.invoice-number').textContent.toLowerCase();
+                bVal = b.querySelector('.invoice-number').textContent.toLowerCase();
+                break;
+            case 2: // Client
+                aVal = a.querySelector('.client-info .fw-semibold').textContent.toLowerCase();
+                bVal = b.querySelector('.client-info .fw-semibold').textContent.toLowerCase();
+                break;
+            case 3: // Invoice Date
+            case 4: // Due Date
+                aVal = a.querySelector(columnIndex === 3 ? '.date-info .fw-semibold' : '.due-date-info .fw-semibold')?.textContent || '';
+                bVal = b.querySelector(columnIndex === 3 ? '.date-info .fw-semibold' : '.due-date-info .fw-semibold')?.textContent || '';
+                break;
+            case 5: // Amount
+                aVal = parseFloat(a.querySelector('.amount-total').textContent.replace(/[^0-9.-]/g, ''));
+                bVal = parseFloat(b.querySelector('.amount-total').textContent.replace(/[^0-9.-]/g, ''));
+                break;
+            case 6: // Status
+                aVal = a.dataset.status;
+                bVal = b.dataset.status;
+                break;
+        }
+        
+        if (columnIndex === 5) { // Numeric sort for amount
+            return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        } else {
+            if (currentSortDirection === 'asc') {
+                return aVal.localeCompare(bVal);
+            } else {
+                return bVal.localeCompare(aVal);
+            }
+        }
+    });
+    
+    // Re-append sorted rows (with their detail rows)
+    rows.forEach(row => {
+        tbody.appendChild(row);
+        const detailRow = document.getElementById(`details-${row.dataset.invoiceId}`);
+        if (detailRow) {
+            tbody.appendChild(detailRow);
+        }
+    });
+}
+
+// Search and Filter Functions
+function filterInvoices() {
+    const searchTerm = document.getElementById('invoiceSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const clientFilter = document.getElementById('clientFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    
+    let visibleCount = 0;
+    
+    allInvoices.forEach(invoice => {
+        let visible = true;
+        
+        // Search filter
+        if (searchTerm && !invoice.searchText.includes(searchTerm)) {
+            visible = false;
+        }
+        
+        // Status filter
+        if (statusFilter && invoice.status !== statusFilter) {
+            visible = false;
+        }
+        
+        // Client filter
+        if (clientFilter && invoice.clientId !== clientFilter) {
+            visible = false;
+        }
+        
+        // Date filter (implement based on requirements)
+        // This would need additional date comparison logic
+        
+        // Show/hide row and its details
+        const detailsRow = document.getElementById(`details-${invoice.id}`);
+        if (visible) {
+            invoice.element.style.display = '';
+            if (detailsRow) detailsRow.style.display = 'none'; // Hide details when filtering
+            visibleCount++;
+        } else {
+            invoice.element.style.display = 'none';
+            if (detailsRow) detailsRow.style.display = 'none';
+        }
+    });
+    
+    // Update results count
+    updateSearchResults(visibleCount);
+}
+
+function clearFilters() {
+    document.getElementById('invoiceSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('clientFilter').value = '';
+    document.getElementById('dateFilter').value = '';
+    filterInvoices();
+}
+
+function updateSearchResults(count) {
+    const resultElement = document.getElementById('searchResults');
+    if (count === 0) {
+        resultElement.textContent = 'No invoices found';
+        resultElement.className = 'badge bg-warning';
+    } else if (count === 1) {
+        resultElement.textContent = '1 invoice';
+        resultElement.className = 'badge bg-success';
+    } else {
+        resultElement.textContent = `${count} invoices`;
+        resultElement.className = 'badge bg-info';
+    }
+}
+
+// Bulk Actions
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const invoiceCheckboxes = document.querySelectorAll('.invoice-select');
+    
+    invoiceCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkedBoxes = document.querySelectorAll('.invoice-select:checked');
+    const bulkActions = document.querySelector('.bulk-actions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (checkedBoxes.length > 0) {
+        bulkActions.style.display = 'block';
+        selectedCount.textContent = checkedBoxes.length;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.invoice-select');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    if (checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedBoxes.length > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+function bulkMarkAsPaid() {
+    const selectedIds = Array.from(document.querySelectorAll('.invoice-select:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    if (confirm(`Mark ${selectedIds.length} invoices as paid?`)) {
+        // Implementation for bulk status update
+        showNotification(`${selectedIds.length} invoices marked as paid!`, 'success');
+    }
+}
+
+function bulkMarkAsSent() {
+    const selectedIds = Array.from(document.querySelectorAll('.invoice-select:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    if (confirm(`Mark ${selectedIds.length} invoices as sent?`)) {
+        // Implementation for bulk status update
+        showNotification(`${selectedIds.length} invoices marked as sent!`, 'success');
+    }
+}
+
+function bulkExport() {
+    const selectedIds = Array.from(document.querySelectorAll('.invoice-select:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    // Implementation for bulk export
+    showNotification(`Exporting ${selectedIds.length} invoices...`, 'info');
+}
+
+function bulkDelete() {
+    const selectedIds = Array.from(document.querySelectorAll('.invoice-select:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    if (confirm(`Delete ${selectedIds.length} invoices? This action cannot be undone.`)) {
+        // Implementation for bulk delete
+        showNotification(`${selectedIds.length} invoices deleted!`, 'success');
+    }
+}
+
+// Export and Reporting
+function exportInvoices() {
+    // Get visible invoices
+    const visibleRows = document.querySelectorAll('.invoice-row:not([style*="display: none"])');
+    
+    if (visibleRows.length === 0) {
+        showNotification('No invoices to export', 'warning');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['Invoice #', 'Client', 'Date', 'Due Date', 'Amount', 'Status'];
+    const csvData = [headers.join(',')];
+    
+    visibleRows.forEach(row => {
+        const invoiceNumber = row.querySelector('.invoice-number a').textContent;
+        const client = row.querySelector('.client-info .fw-semibold').textContent;
+        const date = row.querySelector('.date-info .fw-semibold').textContent;
+        const dueDate = row.querySelector('.due-date-info .fw-semibold')?.textContent || 'N/A';
+        const amount = row.querySelector('.amount-total').textContent;
+        const status = row.dataset.status;
+        
+        const rowData = [
+            `"${invoiceNumber}"`,
+            `"${client}"`,
+            `"${date}"`,
+            `"${dueDate}"`,
+            `"${amount}"`,
+            `"${status}"`
+        ];
+        
+        csvData.push(rowData.join(','));
+    });
+    
+    // Download CSV
+    const csvContent = csvData.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `invoices_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification('Invoices exported successfully!', 'success');
+}
+
+function generateReport() {
+    showNotification('Generating invoice report...', 'info');
+    // Implementation for report generation
+}
+
+// Table Density Toggle
+function toggleTableDensity() {
+    const table = document.getElementById('invoicesTable');
+    const densityIcon = document.getElementById('densityIcon');
+    const densityText = document.getElementById('densityText');
+    
+    if (isCompactMode) {
+        table.classList.remove('table-sm');
+        densityIcon.className = 'fas fa-compress-alt';
+        densityText.textContent = 'Compact';
+        isCompactMode = false;
+    } else {
+        table.classList.add('table-sm');
+        densityIcon.className = 'fas fa-expand-alt';
+        densityText.textContent = 'Comfortable';
+        isCompactMode = true;
+    }
+}
+
+// Invoice Form Functions
+function setupInvoiceCalculations() {
+    document.addEventListener('input', function(e) {
+        if (e.target.matches('input[name="quantity[]"], input[name="unit_price[]"], input[name="tax_rate"]')) {
+            calculateInvoiceTotals();
+        }
+    });
+    
+    // Handle currency changes
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('select[name="currency"]')) {
+            calculateInvoiceTotals();
+        }
+    });
+}
+
+function addInvoiceItem() {
+    const container = document.getElementById('invoiceItems');
+    const itemCount = container.children.length;
+    
+    const newItem = document.createElement('div');
+    newItem.className = 'invoice-item row mb-3';
+    newItem.innerHTML = `
+        <div class="col-md-5">
+            <input type="text" name="description[]" class="form-control" 
+                   placeholder="Item description" required>
+        </div>
+        <div class="col-md-2">
+            <input type="number" name="quantity[]" class="form-control" 
+                   placeholder="Qty" min="0.01" step="0.01" value="1" required>
+        </div>
+        <div class="col-md-2">
+            <input type="number" name="unit_price[]" class="form-control" 
+                   placeholder="Unit Price" min="0.01" step="0.01" required>
+        </div>
+        <div class="col-md-2">
+            <input type="number" name="line_total[]" class="form-control" 
+                   placeholder="Total" readonly>
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-outline-danger btn-sm" 
+                    onclick="removeInvoiceItem(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(newItem);
+    updateRemoveButtons();
+}
+
+function removeInvoiceItem(button) {
+    button.closest('.invoice-item').remove();
+    updateRemoveButtons();
+    calculateInvoiceTotals();
+}
+
+function updateRemoveButtons() {
+    const items = document.querySelectorAll('.invoice-item');
+    items.forEach((item, index) => {
+        const removeBtn = item.querySelector('.btn-outline-danger');
+        removeBtn.disabled = items.length === 1;
+    });
+}
+
+function calculateInvoiceTotals() {
+    let subtotal = 0;
+    
+    // Calculate line totals
+    document.querySelectorAll('.invoice-item').forEach(item => {
+        const quantity = parseFloat(item.querySelector('input[name="quantity[]"]').value) || 0;
+        const unitPrice = parseFloat(item.querySelector('input[name="unit_price[]"]').value) || 0;
+        const lineTotal = quantity * unitPrice;
+        
+        item.querySelector('input[name="line_total[]"]').value = lineTotal.toFixed(2);
+        subtotal += lineTotal;
+    });
+    
+    // Calculate tax
+    const taxRate = parseFloat(document.querySelector('input[name="tax_rate"]').value) || 0;
+    const taxAmount = (subtotal * taxRate) / 100;
+    const total = subtotal + taxAmount;
+    
+    // Get selected currency
+    const currencySelect = document.querySelector('select[name="currency"]');
+    const currency = currencySelect ? currencySelect.value : 'INR';
+    const currencySymbols = {
+        'INR': '₹',
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'CAD': 'C$'
+    };
+    const symbol = currencySymbols[currency] || '₹';
+    
+    // Update displays with proper currency symbol
+    document.getElementById('subtotalDisplay').textContent = `${symbol}${subtotal.toFixed(2)}`;
+    document.getElementById('taxDisplay').textContent = `${symbol}${taxAmount.toFixed(2)}`;
+    document.getElementById('totalDisplay').textContent = `${symbol}${total.toFixed(2)}`;
+    
+    // Update hidden fields
+    document.getElementById('subtotalAmount').value = subtotal.toFixed(2);
+    document.getElementById('taxAmount').value = taxAmount.toFixed(2);
+    document.getElementById('totalAmount').value = total.toFixed(2);
+}
+
+// Utility Functions
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} notification-toast`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${icon} me-2"></i>
+            <span>${message}</span>
+            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
 </script>
+
+<style>
+.bg-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.financial-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease;
+}
+
+.financial-card:hover {
+    transform: translateY(-3px);
+}
+
+.filters-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 25px;
+    color: white;
+}
+
+.filters-section .form-control,
+.filters-section .form-select {
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.filters-section .input-group-text {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+}
+
+.table-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    padding: 15px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.table thead th.sortable:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    transform: translateY(-1px);
+}
+
+.sort-icon {
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 1;
+}
+
+.invoice-row {
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.invoice-row:hover {
+    background-color: #f8f9ff;
+    border-left-color: #667eea;
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.invoice-status-indicator {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.invoice-number a {
+    color: #667eea;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.invoice-number a:hover {
+    color: #5a67d8;
+    text-decoration: underline;
+}
+
+.client-info .fw-semibold {
+    color: #2d3748;
+    font-size: 0.95rem;
+}
+
+.date-info .fw-semibold,
+.due-date-info .fw-semibold {
+    font-size: 0.9rem;
+}
+
+.amount-total {
+    font-size: 1.1rem;
+    color: #2d3748;
+}
+
+.status-badge {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    min-width: 80px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+    transform: scale(1.05);
+}
+
+.btn-action {
+    padding: 6px 10px;
+    margin: 0 1px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.invoice-details-row {
+    background-color: #f8f9fa;
+}
+
+.invoice-details-content {
+    border-left: 3px solid #667eea;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    transition: all 0.3s ease;
+}
+
+.expand-icon {
+    transition: transform 0.3s ease;
+}
+
+.bulk-actions {
+    border-left: 4px solid #17a2b8;
+    background: linear-gradient(135deg, #e1f5fe 0%, #ffffff 100%);
+}
+
+.page-actions {
+    animation: slideInRight 0.5s ease-out;
+}
+
+.empty-state {
+    padding: 60px 20px;
+}
+
+.empty-icon i {
+    opacity: 0.3;
+}
+
+.notification-toast {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.invoice-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stats-card,
+    .financial-card {
+        margin-bottom: 15px;
+    }
+    
+    .page-actions .btn-group {
+        flex-direction: column;
+    }
+    
+    .page-actions .btn {
+        margin-bottom: 5px;
+    }
+    
+    .invoice-details-content {
+        font-size: 0.9rem;
+    }
+    
+    .btn-action {
+        padding: 4px 8px;
+    }
+    
+    .btn-action i {
+        font-size: 0.8rem;
+    }
+    
+    .invoice-status-indicator {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Animation Keyframes */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.stats-card {
+    animation: slideInUp 0.6s ease-out;
+}
+
+.stats-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.stats-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.stats-card:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.table-container {
+    animation: fadeIn 0.8s ease-out;
+}
+</style>
 {% endblock %}
