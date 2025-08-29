@@ -184,7 +184,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="assigned_date" class="form-label">Assignment Date</label>
-                        <input type="date" name="assigned_date" id="assigned_date" class="form-control" value="{{ today }}" required>
+                        <input type="date" name="assigned_date" id="assigned_date" class="form-control" value="{{ today().strftime('%Y-%m-%d') }}" required>
                     </div>
                 </div>
                 <div class="modal-footer">

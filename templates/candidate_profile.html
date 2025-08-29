@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Profile - {{ candidate.first_name }} {{ candidate.last_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('recruitment_dashboard') }}">
+                <i class="fas fa-users me-2"></i>Recruitment
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('candidates') }}">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Candidates
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <div class="avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 80px; height: 80px; font-size: 2rem;">
+                                    {{ candidate.first_name[0] }}{{ candidate.last_name[0] }}
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <h1 class="h3 mb-1">{{ candidate.first_name }} {{ candidate.last_name }}</h1>
+                                <div class="text-muted mb-2">
+                                    <i class="fas fa-envelope me-2"></i>{{ candidate.email }}
+                                    {% if candidate.phone %}
+                                        <span class="ms-3"><i class="fas fa-phone me-2"></i>{{ candidate.phone }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if candidate.location %}
+                                    <div class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-2"></i>{{ candidate.location }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <div class="badge bg-success fs-6 px-3 py-2 mb-2">
+                                    {{ candidate.total_applications }} Applications
+                                </div>
+                                <div class="badge bg-primary fs-6 px-3 py-2">
+                                    {{ candidate.successful_applications }} Selected
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Candidate Details -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-user me-2"></i>Personal Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Experience:</strong> {{ candidate.experience_years or 'Not specified' }} years
+                        </div>
+                        <div class="mb-3">
+                            <strong>Current Position:</strong> {{ candidate.current_position or 'Not specified' }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Current Company:</strong> {{ candidate.current_company or 'Not specified' }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Expected Salary:</strong> 
+                            {% if candidate.expected_salary %}
+                                ₹{{ "{:,}".format(candidate.expected_salary) }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                        <div class="mb-0">
+                            <strong>Source:</strong> {{ candidate.source or 'Direct' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Skills & Qualifications</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if candidate.skills %}
+                            <div class="mb-3">
+                                <strong>Skills:</strong>
+                                <div class="mt-2">
+                                    {% set skills = candidate.skills.split(',') %}
+                                    {% for skill in skills %}
+                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ skill.strip() }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if candidate.education %}
+                            <div class="mb-3">
+                                <strong>Education:</strong><br>
+                                <small class="text-muted">{{ candidate.education }}</small>
+                            </div>
+                        {% endif %}
+                        
+                        {% if candidate.certifications %}
+                            <div class="mb-0">
+                                <strong>Certifications:</strong><br>
+                                <small class="text-muted">{{ candidate.certifications }}</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application History -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Application History</h5>
+                        <span class="badge bg-light text-dark">{{ applications|length }} Applications</span>
+                    </div>
+                    <div class="card-body">
+                        {% if applications %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Position</th>
+                                            <th>Department</th>
+                                            <th>Applied Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for app in applications %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ app.position_title }}</strong>
+                                                </td>
+                                                <td>{{ app.department_name }}</td>
+                                                <td>
+                                                    {% if app.application_date %}
+                                                        {% if app.application_date.__class__.__name__ == 'datetime' %}
+                                                            {{ app.application_date.strftime('%d %b %Y') }}
+                                                        {% else %}
+                                                            {{ app.application_date }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if app.status == 'Applied' %}bg-primary
+                                                        {% elif app.status == 'Under Review' %}bg-warning
+                                                        {% elif app.status == 'Interview Scheduled' %}bg-info
+                                                        {% elif app.status == 'Interview Completed' %}bg-secondary
+                                                        {% elif app.status in ['Offer Extended', 'Hired', 'Selected'] %}bg-success
+                                                        {% elif app.status == 'Rejected' %}bg-danger
+                                                        {% else %}bg-secondary
+                                                        {% endif %}">
+                                                        {{ app.status }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="{{ url_for('applications') }}?filter={{ app.id }}" 
+                                                           class="btn btn-outline-primary btn-sm" title="View Application">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        {% if app.status not in ['Hired', 'Rejected'] %}
+                                                            <button class="btn btn-outline-success btn-sm" 
+                                                                    onclick="scheduleInterview({{ app.id }})" 
+                                                                    title="Schedule Interview">
+                                                                <i class="fas fa-calendar-plus"></i>
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">No Applications Found</h6>
+                                <p class="text-muted">This candidate hasn't applied for any positions yet.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <button class="btn btn-primary me-2" onclick="contactCandidate()">
+                    <i class="fas fa-envelope me-2"></i>Contact Candidate
+                </button>
+                <button class="btn btn-success me-2" onclick="scheduleNewInterview()">
+                    <i class="fas fa-calendar-plus me-2"></i>Schedule Interview
+                </button>
+                <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Candidates
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function contactCandidate() {
+            alert('Contact feature coming soon!');
+        }
+        
+        function scheduleNewInterview() {
+            alert('Schedule interview feature coming soon!');
+        }
+        
+        function scheduleInterview(applicationId) {
+            alert('Schedule interview feature coming soon for application ' + applicationId);
+        }
+    </script>
+</body>
+</html>

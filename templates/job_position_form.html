@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+
+{% block title %}{% if position %}Edit Job Position{% else %}Create New Job Position{% endif %} - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        backg                            <input type="date" class="form-control" id="posted_date" name="posted_date" 
+                                   value="{% if position and position.posted_date %}{% if position.posted_date.__class__.__name__ == 'datetime' %}{{ position.posted_date.strftime('%Y-%m-%d') }}{% else %}{{ position.posted_date }}{% endif %}{% else %}{{ today().strftime('%Y-%m-%d') }}{% endif %}">und: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .form-floating label {
+        color: #6c757d;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    .skill-input-container {
+        position: relative;
+    }
+    .skill-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0 0 8px 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .skill-suggestion {
+        padding: 0.5rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    .skill-suggestion:hover {
+        background: #f8f9fa;
+    }
+    .preview-card {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        background: #f8f9fa;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-{% if position %}edit{% else %}plus{% endif %} text-primary"></i> 
+                        {% if position %}Edit Job Position{% else %}Create New Job Position{% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">{% if position %}Update job position details and requirements{% else %}Define a new job opening and its requirements{% endif %}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('job_positions') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Positions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" id="positionForm">
+        <div class="row">
+            <!-- Basic Information -->
+            <div class="col-lg-8">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-briefcase text-primary me-2"></i>
+                        Basic Information
+                    </h5>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="position_title" name="position_title" 
+                                   value="{{ position.position_title if position }}" required>
+                            <label for="position_title" class="required-field">Position Title</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="department_id" name="department_id">
+                                    <option value="">Select Department</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.id }}" {{ 'selected' if position and position.department_id == dept.id }}>{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="department_id">Department</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="location" name="location" 
+                                       value="{{ position.location if position }}">
+                                <label for="location">Location</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <textarea class="form-control" id="job_description" name="job_description" 
+                                      style="height: 120px">{{ position.job_description if position }}</textarea>
+                            <label for="job_description">Job Description</label>
+                        </div>
+                        <small class="text-muted">Describe the role, responsibilities, and what the candidate will do</small>
+                    </div>
+                </div>
+
+                <!-- Requirements & Skills -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-list-check text-primary me-2"></i>
+                        Requirements & Skills
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="experience_level" name="experience_level" required>
+                                    <option value="">Select Experience Level</option>
+                                    <option value="Entry Level" {{ 'selected' if position and position.experience_level == 'Entry Level' }}>Entry Level</option>
+                                    <option value="Junior" {{ 'selected' if position and position.experience_level == 'Junior' }}>Junior (1-3 years)</option>
+                                    <option value="Mid Level" {{ 'selected' if position and position.experience_level == 'Mid Level' }}>Mid Level (3-5 years)</option>
+                                    <option value="Senior" {{ 'selected' if position and position.experience_level == 'Senior' }}>Senior (5-8 years)</option>
+                                    <option value="Lead" {{ 'selected' if position and position.experience_level == 'Lead' }}>Lead (8+ years)</option>
+                                    <option value="Manager" {{ 'selected' if position and position.experience_level == 'Manager' }}>Manager</option>
+                                    <option value="Director" {{ 'selected' if position and position.experience_level == 'Director' }}>Director</option>
+                                </select>
+                                <label for="experience_level" class="required-field">Experience Level</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="employment_type" name="employment_type">
+                                    <option value="Full Time" {{ 'selected' if not position or position.employment_type == 'Full Time' }}>Full Time</option>
+                                    <option value="Part Time" {{ 'selected' if position and position.employment_type == 'Part Time' }}>Part Time</option>
+                                    <option value="Contract" {{ 'selected' if position and position.employment_type == 'Contract' }}>Contract</option>
+                                    <option value="Intern" {{ 'selected' if position and position.employment_type == 'Intern' }}>Internship</option>
+                                </select>
+                                <label for="employment_type">Employment Type</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="skill-input-container">
+                            <div class="form-floating">
+                                <textarea class="form-control" id="required_skills" name="required_skills" 
+                                          style="height: 100px" placeholder="e.g., Python, React, AWS, Communication Skills">{{ position.required_skills if position }}</textarea>
+                                <label for="required_skills">Required Skills (comma-separated)</label>
+                            </div>
+                            <div class="skill-suggestions" id="skillSuggestions"></div>
+                        </div>
+                        <small class="text-muted">Enter required skills separated by commas</small>
+                    </div>
+                </div>
+
+                <!-- Salary & Benefits -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-rupee-sign text-primary me-2"></i>
+                        Compensation & Benefits
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="salary_min" name="salary_min" 
+                                       value="{{ position.salary_min if position }}" step="1000">
+                                <label for="salary_min">Minimum Salary (₹)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="salary_max" name="salary_max" 
+                                       value="{{ position.salary_max if position }}" step="1000">
+                                <label for="salary_max">Maximum Salary (₹)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Salary Range Guide:</strong> Setting a competitive salary range helps attract the right candidates. 
+                        Leave blank if you prefer not to disclose salary information publicly.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Position Settings & Timeline -->
+            <div class="col-lg-4">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-cog text-primary me-2"></i>
+                        Position Settings
+                    </h5>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <select class="form-select" id="status" name="status">
+                                <option value="Open" {{ 'selected' if not position or position.status == 'Open' }}>Open</option>
+                                <option value="Closed" {{ 'selected' if position and position.status == 'Closed' }}>Closed</option>
+                                <option value="On Hold" {{ 'selected' if position and position.status == 'On Hold' }}>On Hold</option>
+                            </select>
+                            <label for="status">Position Status</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="date" class="form-control" id="posted_date" name="posted_date" 
+                                   value="{% if position and position.posted_date %}{% if position.posted_date.__class__.__name__ == 'datetime' %}{{ position.posted_date.strftime('%Y-%m-%d') }}{% else %}{{ position.posted_date }}{% endif %}{% else %}{{ today() }}{% endif %}">>
+                            <label for="posted_date">Posted Date</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="date" class="form-control" id="closing_date" name="closing_date" 
+                                   value="{% if position and position.closing_date %}{% if position.closing_date.__class__.__name__ == 'datetime' %}{{ position.closing_date.strftime('%Y-%m-%d') }}{% else %}{{ position.closing_date }}{% endif %}{% endif %}">>
+                            <label for="closing_date">Application Closing Date</label>
+                        </div>
+                        <small class="text-muted">Optional - Leave blank for open-ended positions</small>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-bolt text-primary me-2"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-info" onclick="previewPosition()">
+                            <i class="fas fa-eye"></i> Preview Position
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="useTemplate()">
+                            <i class="fas fa-copy"></i> Use Template
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" onclick="saveDraft()">
+                            <i class="fas fa-save"></i> Save as Draft
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Position Statistics (if editing) -->
+                {% if position %}
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-chart-bar text-primary me-2"></i>
+                        Position Statistics
+                    </h5>
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <h4 class="text-primary mb-0">{{ position.application_count or 0 }}</h4>
+                            <small class="text-muted">Applications</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h4 class="text-success mb-0">{{ position.selected_count or 0 }}</h4>
+                            <small class="text-muted">Selected</small>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <a href="#" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-users"></i> View Applications
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="row" id="previewSection" style="display: none;">
+            <div class="col-12">
+                <div class="preview-card">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-eye me-2"></i>
+                        Position Preview
+                    </h5>
+                    <div id="positionPreview">
+                        <!-- Preview content will be generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="form-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Fields marked with <span class="text-danger">*</span> are required
+                            </small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('job_positions') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="button" class="btn btn-outline-primary" onclick="previewPosition()">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save"></i> 
+                                {% if position %}Update Position{% else %}Create Position{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Templates Modal -->
+<div class="modal fade" id="templatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-copy me-2"></i>Job Position Templates
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Software Developer</h6>
+                                <p class="text-muted small">Full-time development role with modern tech stack</p>
+                                <button class="btn btn-sm btn-primary" onclick="loadTemplate('software_developer')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Marketing Manager</h6>
+                                <p class="text-muted small">Lead marketing initiatives and campaigns</p>
+                                <button class="btn btn-sm btn-primary" onclick="loadTemplate('marketing_manager')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>HR Executive</h6>
+                                <p class="text-muted small">Human resources and talent management</p>
+                                <button class="btn btn-sm btn-primary" onclick="loadTemplate('hr_executive')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>Sales Representative</h6>
+                                <p class="text-muted small">Drive sales growth and client relationships</p>
+                                <button class="btn btn-sm btn-primary" onclick="loadTemplate('sales_representative')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Auto-hide alerts
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+
+        // Set default posted date to today
+        if (!$('#posted_date').val()) {
+            $('#posted_date').val(new Date().toISOString().split('T')[0]);
+        }
+
+        // Form validation
+        $('#positionForm').on('submit', function(e) {
+            let isValid = true;
+            const requiredFields = ['position_title', 'experience_level'];
+            
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field);
+                if (!input.value.trim()) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            // Salary validation
+            const minSalary = parseFloat($('#salary_min').val()) || 0;
+            const maxSalary = parseFloat($('#salary_max').val()) || 0;
+            
+            if (minSalary > 0 && maxSalary > 0 && minSalary >= maxSalary) {
+                alert('Maximum salary must be greater than minimum salary.');
+                $('#salary_max').addClass('is-invalid');
+                isValid = false;
+            }
+
+            // Date validation
+            const postedDate = new Date($('#posted_date').val());
+            const closingDate = new Date($('#closing_date').val());
+            
+            if ($('#closing_date').val() && closingDate <= postedDate) {
+                alert('Closing date must be after the posted date.');
+                $('#closing_date').addClass('is-invalid');
+                isValid = false;
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields correctly.');
+            }
+        });
+
+        // Skills autocomplete
+        const commonSkills = [
+            'Python', 'JavaScript', 'React', 'Node.js', 'Java', 'C++', 'SQL', 'HTML', 'CSS',
+            'AWS', 'Docker', 'Kubernetes', 'Git', 'MongoDB', 'PostgreSQL', 'Redis',
+            'Communication', 'Leadership', 'Project Management', 'Problem Solving',
+            'Marketing', 'Sales', 'Customer Service', 'Data Analysis', 'Excel'
+        ];
+
+        $('#required_skills').on('input', function() {
+            const input = $(this).val();
+            const lastCommaIndex = input.lastIndexOf(',');
+            const currentSkill = input.substring(lastCommaIndex + 1).trim();
+            
+            if (currentSkill.length > 0) {
+                const suggestions = commonSkills.filter(skill => 
+                    skill.toLowerCase().includes(currentSkill.toLowerCase()) &&
+                    !input.toLowerCase().includes(skill.toLowerCase())
+                );
+                
+                if (suggestions.length > 0) {
+                    let suggestionsHtml = '';
+                    suggestions.slice(0, 5).forEach(skill => {
+                        suggestionsHtml += `<div class="skill-suggestion" onclick="addSkill('${skill}')">${skill}</div>`;
+                    });
+                    $('#skillSuggestions').html(suggestionsHtml).show();
+                } else {
+                    $('#skillSuggestions').hide();
+                }
+            } else {
+                $('#skillSuggestions').hide();
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.skill-input-container').length) {
+                $('#skillSuggestions').hide();
+            }
+        });
+    });
+
+    function addSkill(skill) {
+        const skillsInput = $('#required_skills');
+        let currentValue = skillsInput.val();
+        const lastCommaIndex = currentValue.lastIndexOf(',');
+        
+        if (lastCommaIndex >= 0) {
+            currentValue = currentValue.substring(0, lastCommaIndex + 1) + ' ' + skill;
+        } else {
+            currentValue = skill;
+        }
+        
+        skillsInput.val(currentValue + ', ');
+        $('#skillSuggestions').hide();
+        skillsInput.focus();
+    }
+
+    function previewPosition() {
+        const title = $('#position_title').val();
+        const department = $('#department_id option:selected').text();
+        const location = $('#location').val();
+        const description = $('#job_description').val();
+        const skills = $('#required_skills').val();
+        const experienceLevel = $('#experience_level').val();
+        const employmentType = $('#employment_type').val();
+        const salaryMin = $('#salary_min').val();
+        const salaryMax = $('#salary_max').val();
+
+        let previewHtml = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">${title || 'Position Title'}</h4>
+                    <p class="mb-0">${department !== 'Select Department' ? department : 'Department'} • ${location || 'Location'}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Experience Level:</strong> ${experienceLevel || 'Not specified'}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Employment Type:</strong> ${employmentType}
+                        </div>
+                    </div>
+        `;
+
+        if (salaryMin || salaryMax) {
+            previewHtml += `
+                <div class="mb-3">
+                    <strong>Salary Range:</strong> 
+                    ${salaryMin ? '₹' + parseInt(salaryMin).toLocaleString() : ''} 
+                    ${salaryMin && salaryMax ? ' - ' : ''}
+                    ${salaryMax ? '₹' + parseInt(salaryMax).toLocaleString() : ''}
+                </div>
+            `;
+        }
+
+        if (description) {
+            previewHtml += `
+                <div class="mb-3">
+                    <strong>Job Description:</strong>
+                    <p class="text-muted">${description}</p>
+                </div>
+            `;
+        }
+
+        if (skills) {
+            const skillsList = skills.split(',').map(skill => 
+                `<span class="badge bg-primary me-1">${skill.trim()}</span>`
+            ).join('');
+            
+            previewHtml += `
+                <div class="mb-3">
+                    <strong>Required Skills:</strong><br>
+                    ${skillsList}
+                </div>
+            `;
+        }
+
+        previewHtml += `
+                </div>
+            </div>
+        `;
+
+        $('#positionPreview').html(previewHtml);
+        $('#previewSection').show();
+        
+        // Scroll to preview
+        $('html, body').animate({
+            scrollTop: $('#previewSection').offset().top - 100
+        }, 500);
+    }
+
+    function useTemplate() {
+        $('#templatesModal').modal('show');
+    }
+
+    function loadTemplate(templateType) {
+        const templates = {
+            'software_developer': {
+                title: 'Software Developer',
+                description: 'We are looking for a skilled Software Developer to join our development team. You will be responsible for designing, developing, and maintaining high-quality software applications using modern technologies and best practices.',
+                skills: 'Python, JavaScript, React, Node.js, Git, SQL, Problem Solving, Communication',
+                experienceLevel: 'Mid Level',
+                salaryMin: 600000,
+                salaryMax: 1200000
+            },
+            'marketing_manager': {
+                title: 'Marketing Manager',
+                description: 'Lead our marketing efforts and drive brand awareness. You will develop and execute marketing strategies, manage campaigns, and work closely with cross-functional teams to achieve business objectives.',
+                skills: 'Digital Marketing, Content Strategy, Analytics, Project Management, Communication, Leadership',
+                experienceLevel: 'Senior',
+                salaryMin: 800000,
+                salaryMax: 1500000
+            },
+            'hr_executive': {
+                title: 'HR Executive',
+                description: 'Join our HR team to support recruitment, employee relations, and HR operations. You will be responsible for talent acquisition, onboarding, and maintaining positive workplace culture.',
+                skills: 'Recruitment, Employee Relations, Communication, MS Office, HRIS, Policy Development',
+                experienceLevel: 'Junior',
+                salaryMin: 400000,
+                salaryMax: 700000
+            },
+            'sales_representative': {
+                title: 'Sales Representative',
+                description: 'Drive sales growth by building relationships with clients and identifying new business opportunities. You will be responsible for meeting sales targets and providing excellent customer service.',
+                skills: 'Sales, Communication, CRM, Negotiation, Customer Service, Lead Generation',
+                experienceLevel: 'Junior',
+                salaryMin: 350000,
+                salaryMax: 600000
+            }
+        };
+
+        const template = templates[templateType];
+        if (template) {
+            $('#position_title').val(template.title);
+            $('#job_description').val(template.description);
+            $('#required_skills').val(template.skills);
+            $('#experience_level').val(template.experienceLevel);
+            $('#salary_min').val(template.salaryMin);
+            $('#salary_max').val(template.salaryMax);
+            
+            $('#templatesModal').modal('hide');
+            
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Template loaded successfully! You can now customize the details.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            $('body').append(alertHtml);
+            setTimeout(() => $('.alert').fadeOut(), 3000);
+        }
+    }
+
+    function saveDraft() {
+        // This would save the form as a draft
+        alert('Draft save functionality will be implemented soon!');
+    }
+</script>
+{% endblock %}

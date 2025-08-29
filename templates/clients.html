@@ -290,8 +290,20 @@
                             <td class="date-cell">
                                 <div class="created-date">
                                     {% if client[11] %}
-                                        <div class="fw-semibold text-dark">{{ client[11].strftime('%b %d, %Y') }}</div>
-                                        <div class="text-muted small">{{ client[11].strftime('%I:%M %p') }}</div>
+                                        <div class="fw-semibold text-dark">
+                                            {% if client[11].__class__.__name__ == 'datetime' %}
+                                                {{ client[11].strftime('%b %d, %Y') }}
+                                            {% else %}
+                                                {{ client[11] }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-muted small">
+                                            {% if client[11].__class__.__name__ == 'datetime' %}
+                                                {{ client[11].strftime('%I:%M %p') }}
+                                            {% else %}
+                                                {{ client[11] }}
+                                            {% endif %}
+                                        </div>
                                     {% else %}
                                         <span class="text-muted">Unknown</span>
                                     {% endif %}
@@ -345,7 +357,13 @@
                                                 <p class="mb-1"><strong>Tax ID:</strong> {{ client[8] }}</p>
                                             {% endif %}
                                             {% if client[12] %}
-                                                <p class="mb-1"><strong>Last Updated:</strong> {{ client[12].strftime('%b %d, %Y at %I:%M %p') }}</p>
+                                                <p class="mb-1"><strong>Last Updated:</strong> 
+                                                    {% if client[12].__class__.__name__ == 'datetime' %}
+                                                        {{ client[12].strftime('%b %d, %Y at %I:%M %p') }}
+                                                    {% else %}
+                                                        {{ client[12] }}
+                                                    {% endif %}
+                                                </p>
                                             {% endif %}
                                             <p class="mb-1"><strong>Client ID:</strong> #{{ client[0] }}</p>
                                         </div>

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Job Applications - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .application-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .application-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .application-header {
+        padding: 1rem;
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    }
+    .candidate-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.3rem;
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    .priority-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .application-stats {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+    }
+    .skill-tag {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin: 0.125rem;
+        display: inline-block;
+    }
+    .timeline-item {
+        border-left: 3px solid #dee2e6;
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #667eea;
+    }
+    .filter-card {
+        background: #f8f9fa;
+        border: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .quick-action-btn {
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .quick-action-btn:hover {
+        background: #f8f9fa;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-file-alt text-primary"></i> 
+                        Job Applications
+                    </h2>
+                    <p class="text-muted mb-0">Track and manage all candidate applications</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('candidates') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-users"></i> View Candidates
+                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel"></i> Excel Report</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf"></i> PDF Report</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-csv"></i> CSV Export</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-inbox fa-2x text-primary mb-2"></i>
+                    <h4 class="text-primary">{{ applications|length }}</h4>
+                    <small class="text-muted">Total Applications</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-hourglass-half fa-2x text-warning mb-2"></i>
+                    <h4 class="text-warning">{{ applications|selectattr('status', 'equalto', 'Under Review')|list|length }}</h4>
+                    <small class="text-muted">Under Review</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-calendar-check fa-2x text-info mb-2"></i>
+                    <h4 class="text-info">{{ applications|selectattr('status', 'equalto', 'Interview Scheduled')|list|length }}</h4>
+                    <small class="text-muted">Interview Scheduled</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-thumbs-up fa-2x text-success mb-2"></i>
+                    <h4 class="text-success">{{ applications|selectattr('status', 'in', ['Offer Extended', 'Hired'])|list|length }}</h4>
+                    <small class="text-muted">Positive Outcome</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">All Status</option>
+                                <option value="Applied" {{ 'selected' if selected_status == 'Applied' }}>Applied</option>
+                                <option value="Under Review" {{ 'selected' if selected_status == 'Under Review' }}>Under Review</option>
+                                <option value="Interview Scheduled" {{ 'selected' if selected_status == 'Interview Scheduled' }}>Interview Scheduled</option>
+                                <option value="Interview Completed" {{ 'selected' if selected_status == 'Interview Completed' }}>Interview Completed</option>
+                                <option value="Offer Extended" {{ 'selected' if selected_status == 'Offer Extended' }}>Offer Extended</option>
+                                <option value="Hired" {{ 'selected' if selected_status == 'Hired' }}>Hired</option>
+                                <option value="Rejected" {{ 'selected' if selected_status == 'Rejected' }}>Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Position</label>
+                            <select class="form-select" name="position">
+                                <option value="">All Positions</option>
+                                {% for position in positions %}
+                                <option value="{{ position.id }}" {{ 'selected' if selected_position == position.id|string }}>
+                                    {{ position.position_title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Date From</label>
+                            <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Applications List -->
+    <div class="row">
+        {% if applications %}
+            {% for app in applications %}
+            <div class="col-xl-6 col-lg-6 col-md-12 mb-4">
+                <div class="card application-card h-100">
+                    <!-- Header -->
+                    <div class="application-header">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="candidate-avatar me-3">
+                                    {{ app.first_name[0] if app.first_name else 'C' }}{{ app.last_name[0] if app.last_name else '' }}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">{{ app.first_name }} {{ app.last_name }}</h6>
+                                    <small class="text-muted">{{ app.email }}</small>
+                                    <br>
+                                    <small class="text-muted">Applied: 
+                                        {% if app.application_date %}
+                                            {% if app.application_date.__class__.__name__ == 'datetime' %}
+                                                {{ app.application_date.strftime('%d %b %Y') }}
+                                            {% else %}
+                                                {{ app.application_date }}
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="status-badge bg-{% if app.status == 'Applied' %}primary{% elif app.status == 'Under Review' %}warning{% elif app.status == 'Interview Scheduled' %}info{% elif app.status == 'Interview Completed' %}secondary{% elif app.status in ['Offer Extended', 'Hired'] %}success{% elif app.status == 'Rejected' %}danger{% else %}secondary{% endif %}">
+                                    {{ app.status }}
+                                </span>
+                                {% if app.priority %}
+                                <br>
+                                <span class="priority-badge mt-1 bg-{% if app.priority == 'High' %}danger{% elif app.priority == 'Medium' %}warning{% else %}secondary{% endif %}">
+                                    {{ app.priority }} Priority
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="card-body">
+                        <!-- Position Info -->
+                        <div class="mb-3">
+                            <h6 class="text-primary mb-1">{{ app.position_title }}</h6>
+                            <small class="text-muted">{{ app.department_name or 'No Department' }}</small>
+                            {% if app.salary_expectation %}
+                            <div class="mt-1">
+                                <small class="text-muted">Expected Salary: </small>
+                                <span class="fw-semibold">₹{{ "{:,.0f}".format(app.salary_expectation) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Candidate Info -->
+                        <div class="application-stats">
+                            <div class="row text-center">
+                                {% if app.total_experience %}
+                                <div class="col-4">
+                                    <strong class="d-block">{{ app.total_experience }}</strong>
+                                    <small class="text-muted">Years Exp.</small>
+                                </div>
+                                {% endif %}
+                                {% if app.current_company %}
+                                <div class="col-8">
+                                    <strong class="d-block">{{ app.current_company[:20] }}{% if app.current_company|length > 20 %}...{% endif %}</strong>
+                                    <small class="text-muted">Current Company</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Skills -->
+                        {% if app.skills %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2">Key Skills:</small>
+                            <div>
+                                {% for skill in app.skills.split(',')[:5] %}
+                                <span class="skill-tag">{{ skill.strip() }}</span>
+                                {% endfor %}
+                                {% if app.skills.split(',')|length > 5 %}
+                                <span class="skill-tag">+{{ app.skills.split(',')|length - 5 }} more</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Application Notes -->
+                        {% if app.cover_letter %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">Cover Letter:</small>
+                            <p class="text-muted small mb-0">{{ app.cover_letter[:100] }}{% if app.cover_letter|length > 100 %}...{% endif %}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Quick Actions Timeline -->
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2">Application Timeline:</small>
+                            <div class="timeline-item">
+                                <small class="text-muted">
+                                    {% if app.application_date %}
+                                        {% if app.application_date.__class__.__name__ == 'datetime' %}
+                                            {{ app.application_date.strftime('%d %b %Y, %I:%M %p') }}
+                                        {% else %}
+                                            {{ app.application_date }}
+                                        {% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </small>
+                                <div class="fw-semibold">Application Submitted</div>
+                            </div>
+                            {% if app.status != 'Applied' %}
+                            <div class="timeline-item">
+                                <small class="text-muted">Status updated</small>
+                                <div class="fw-semibold">{{ app.status }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="card-footer bg-transparent border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="btn-group btn-group-sm">
+                                {% if app.resume_path %}
+                                <button class="quick-action-btn" title="Download Resume" onclick="downloadResume('{{ app.id }}')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                {% endif %}
+                                <button class="quick-action-btn" title="Send Message" onclick="sendMessage('{{ app.id }}')">
+                                    <i class="fas fa-envelope"></i>
+                                </button>
+                                <button class="quick-action-btn" title="View Profile" onclick="viewProfile('{{ app.candidate_id }}')">
+                                    <i class="fas fa-user"></i>
+                                </button>
+                            </div>
+
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if app.status == 'Applied' %}
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ app.id }}', 'Under Review')">
+                                        <i class="fas fa-eye text-warning"></i> Move to Review
+                                    </a></li>
+                                    {% endif %}
+                                    
+                                    {% if app.status in ['Applied', 'Under Review'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('schedule_interview') }}?application={{ app.id }}">
+                                        <i class="fas fa-calendar-plus text-info"></i> Schedule Interview
+                                    </a></li>
+                                    {% endif %}
+                                    
+                                    {% if app.status == 'Interview Completed' %}
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ app.id }}', 'Offer Extended')">
+                                        <i class="fas fa-handshake text-success"></i> Extend Offer
+                                    </a></li>
+                                    {% endif %}
+                                    
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ app.id }}', 'Rejected')">
+                                        <i class="fas fa-times text-danger"></i> Reject Application
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-inbox fa-5x text-muted opacity-25"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">No Applications Found</h4>
+                    <p class="text-muted mb-4">
+                        {% if selected_status or selected_position or date_from %}
+                            Try adjusting your filter criteria.
+                        {% else %}
+                            Applications will appear here when candidates apply for positions.
+                        {% endif %}
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        {% if selected_status or selected_position or date_from %}
+                        <a href="{{ url_for('applications') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-refresh"></i> Clear Filters
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('job_positions') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Post New Job
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-hide alerts
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+});
+
+function updateStatus(applicationId, newStatus) {
+    if (confirm(`Are you sure you want to change the application status to "${newStatus}"?`)) {
+        // AJAX call to update status
+        $.ajax({
+            url: '/update_status/' + applicationId + '/' + newStatus,
+            method: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Application status updated successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    $('body').append(alertHtml);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('Error updating status: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error updating application status. Please try again.');
+            }
+        });
+    }
+}
+
+function downloadResume(applicationId) {
+    window.location.href = '/download_resume/' + applicationId;
+}
+
+function sendMessage(applicationId) {
+    window.location.href = '/send_message/' + applicationId;
+}
+
+function viewProfile(candidateId) {
+    window.location.href = '/view_profile/' + candidateId;
+}
+</script>
+{% endblock %}

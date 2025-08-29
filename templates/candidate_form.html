@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+
+{% block title %}{% if candidate %}Edit Candidate{% else %}Add New Candidate{% endif %} - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .form-floating label {
+        color: #6c757d;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border: none;
+    }
+    .btn-primary:hover {
+        background: linear-gradient(45deg, #5a6fd8, #6b4190);
+    }
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    .skill-tag {
+        display: inline-block;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        margin: 0.25rem;
+        font-size: 0.875rem;
+    }
+    .file-upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .file-upload-area:hover {
+        border-color: #667eea;
+        background-color: #f8f9ff;
+    }
+    .file-upload-area.dragover {
+        border-color: #667eea;
+        background-color: #f0f0ff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-{% if candidate %}user-edit{% else %}user-plus{% endif %} text-primary"></i> 
+                        {% if candidate %}Edit Candidate{% else %}Add New Candidate{% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">{% if candidate %}Update candidate information and profile{% else %}Add a new candidate to the recruitment pipeline{% endif %}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Candidates
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" enctype="multipart/form-data" id="candidateForm">
+        <div class="row">
+            <!-- Basic Information -->
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-user text-primary me-2"></i>
+                        Basic Information
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       value="{{ candidate.first_name if candidate }}" required>
+                                <label for="first_name" class="required-field">First Name</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       value="{{ candidate.last_name if candidate }}" required>
+                                <label for="last_name" class="required-field">Last Name</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ candidate.email if candidate }}" required>
+                                <label for="email" class="required-field">Email Address</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                       value="{{ candidate.phone if candidate }}" required>
+                                <label for="phone" class="required-field">Phone Number</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="tel" class="form-control" id="alternate_phone" name="alternate_phone" 
+                                   value="{{ candidate.alternate_phone if candidate }}">
+                            <label for="alternate_phone">Alternate Phone</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Information -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                        Address Information
+                    </h5>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <textarea class="form-control" id="address" name="address" style="height: 100px">{{ candidate.address if candidate }}</textarea>
+                            <label for="address">Full Address</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="city" name="city" 
+                                       value="{{ candidate.city if candidate }}">
+                                <label for="city">City</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="state" name="state" 
+                                       value="{{ candidate.state if candidate }}">
+                                <label for="state">State</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="country" name="country">
+                                    <option value="India" {{ 'selected' if not candidate or candidate.country == 'India' }}>India</option>
+                                    <option value="USA" {{ 'selected' if candidate and candidate.country == 'USA' }}>USA</option>
+                                    <option value="Canada" {{ 'selected' if candidate and candidate.country == 'Canada' }}>Canada</option>
+                                    <option value="UK" {{ 'selected' if candidate and candidate.country == 'UK' }}>UK</option>
+                                    <option value="Australia" {{ 'selected' if candidate and candidate.country == 'Australia' }}>Australia</option>
+                                    <option value="Other" {{ 'selected' if candidate and candidate.country == 'Other' }}>Other</option>
+                                </select>
+                                <label for="country">Country</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="pincode" name="pincode" 
+                                       value="{{ candidate.pincode if candidate }}">
+                                <label for="pincode">PIN Code</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professional Information -->
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-briefcase text-primary me-2"></i>
+                        Professional Information
+                    </h5>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="current_company" name="current_company" 
+                                   value="{{ candidate.current_company if candidate }}">
+                            <label for="current_company">Current Company</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="current_position" name="current_position" 
+                                   value="{{ candidate.current_position if candidate }}">
+                            <label for="current_position">Current Position</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="current_salary" name="current_salary" 
+                                       value="{{ candidate.current_salary if candidate }}" step="1000">
+                                <label for="current_salary">Current Salary (₹)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="expected_salary" name="expected_salary" 
+                                       value="{{ candidate.expected_salary if candidate }}" step="1000">
+                                <label for="expected_salary">Expected Salary (₹)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="notice_period" name="notice_period">
+                                    <option value="">Select Notice Period</option>
+                                    <option value="Immediate" {{ 'selected' if candidate and candidate.notice_period == 'Immediate' }}>Immediate</option>
+                                    <option value="15 Days" {{ 'selected' if candidate and candidate.notice_period == '15 Days' }}>15 Days</option>
+                                    <option value="1 Month" {{ 'selected' if candidate and candidate.notice_period == '1 Month' }}>1 Month</option>
+                                    <option value="2 Months" {{ 'selected' if candidate and candidate.notice_period == '2 Months' }}>2 Months</option>
+                                    <option value="3 Months" {{ 'selected' if candidate and candidate.notice_period == '3 Months' }}>3 Months</option>
+                                    <option value="More than 3 Months" {{ 'selected' if candidate and candidate.notice_period == 'More than 3 Months' }}>More than 3 Months</option>
+                                </select>
+                                <label for="notice_period">Notice Period</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="total_experience" name="total_experience" 
+                                       value="{{ candidate.total_experience if candidate }}" step="0.5" min="0">
+                                <label for="total_experience">Total Experience (Years)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="number" class="form-control" id="relevant_experience" name="relevant_experience" 
+                                   value="{{ candidate.relevant_experience if candidate }}" step="0.5" min="0">
+                            <label for="relevant_experience">Relevant Experience (Years)</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="highest_qualification" name="highest_qualification" 
+                                   value="{{ candidate.highest_qualification if candidate }}">
+                            <label for="highest_qualification">Highest Qualification</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skills and Profiles -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-code text-primary me-2"></i>
+                        Skills & Online Profiles
+                    </h5>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <textarea class="form-control" id="skills" name="skills" style="height: 100px" 
+                                      placeholder="e.g., Python, JavaScript, React, Node.js">{{ candidate.skills if candidate }}</textarea>
+                            <label for="skills">Skills (comma-separated)</label>
+                        </div>
+                        <small class="text-muted">Enter skills separated by commas</small>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="url" class="form-control" id="linkedin_profile" name="linkedin_profile" 
+                                   value="{{ candidate.linkedin_profile if candidate }}">
+                            <label for="linkedin_profile">LinkedIn Profile</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="url" class="form-control" id="github_profile" name="github_profile" 
+                                   value="{{ candidate.github_profile if candidate }}">
+                            <label for="github_profile">GitHub Profile</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <input type="url" class="form-control" id="portfolio_url" name="portfolio_url" 
+                                   value="{{ candidate.portfolio_url if candidate }}">
+                            <label for="portfolio_url">Portfolio URL</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        Additional Information
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-floating">
+                                <select class="form-select" id="source" name="source" required>
+                                    <option value="">Select Source</option>
+                                    <option value="Job Portal" {{ 'selected' if candidate and candidate.source == 'Job Portal' }}>Job Portal</option>
+                                    <option value="Referral" {{ 'selected' if candidate and candidate.source == 'Referral' }}>Referral</option>
+                                    <option value="Direct Application" {{ 'selected' if candidate and candidate.source == 'Direct Application' }}>Direct Application</option>
+                                    <option value="LinkedIn" {{ 'selected' if candidate and candidate.source == 'LinkedIn' }}>LinkedIn</option>
+                                    <option value="Campus Hiring" {{ 'selected' if candidate and candidate.source == 'Campus Hiring' }}>Campus Hiring</option>
+                                    <option value="Walk-in" {{ 'selected' if candidate and candidate.source == 'Walk-in' }}>Walk-in</option>
+                                    <option value="Other" {{ 'selected' if candidate and candidate.source == 'Other' }}>Other</option>
+                                </select>
+                                <label for="source" class="required-field">Source</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-floating">
+                            <textarea class="form-control" id="notes" name="notes" style="height: 120px">{{ candidate.notes if candidate }}</textarea>
+                            <label for="notes">Notes</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resume Upload -->
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="fas fa-file-upload text-primary me-2"></i>
+                        Resume & Documents
+                    </h5>
+                    <div class="file-upload-area" id="resumeUpload">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Upload Resume</h5>
+                        <p class="text-muted">Drag and drop resume here or click to browse</p>
+                        <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" style="display: none;">
+                        <div class="mt-2">
+                            <small class="text-muted">Supported formats: PDF, DOC, DOCX (Max 5MB)</small>
+                        </div>
+                        {% if candidate and candidate.resume_filename %}
+                        <div class="mt-3 p-2 bg-light rounded">
+                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                            <span>{{ candidate.resume_filename }}</span>
+                            <a href="#" class="btn btn-sm btn-outline-primary ms-2">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="form-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Fields marked with <span class="text-danger">*</span> are required
+                            </small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save"></i> 
+                                {% if candidate %}Update Candidate{% else %}Add Candidate{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Auto-hide alerts
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+
+        // File upload functionality
+        const uploadArea = document.getElementById('resumeUpload');
+        const fileInput = document.getElementById('resume');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileDisplay(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                updateFileDisplay(e.target.files[0]);
+            }
+        });
+
+        function updateFileDisplay(file) {
+            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please upload only PDF, DOC, or DOCX files.');
+                return;
+            }
+
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                return;
+            }
+
+            // Update display
+            uploadArea.innerHTML = `
+                <i class="fas fa-file-check fa-3x text-success mb-3"></i>
+                <h5 class="text-success">File Selected</h5>
+                <p class="text-muted">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFile()">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            `;
+        }
+
+        // Skills input enhancement
+        $('#skills').on('blur', function() {
+            const skills = $(this).val().split(',');
+            let skillsPreview = '';
+            
+            skills.forEach(skill => {
+                if (skill.trim()) {
+                    skillsPreview += `<span class="skill-tag">${skill.trim()}</span>`;
+                }
+            });
+            
+            if (skillsPreview) {
+                if (!$('.skills-preview').length) {
+                    $(this).parent().append('<div class="skills-preview mt-2"></div>');
+                }
+                $('.skills-preview').html(skillsPreview);
+            }
+        });
+
+        // Form validation
+        $('#candidateForm').on('submit', function(e) {
+            let isValid = true;
+            const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'source'];
+            
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field);
+                if (!input.value.trim()) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            // Email validation
+            const email = document.getElementById('email').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email && !emailRegex.test(email)) {
+                document.getElementById('email').classList.add('is-invalid');
+                isValid = false;
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields correctly.');
+            }
+        });
+
+        // Auto-calculate relevant experience
+        $('#total_experience').on('change', function() {
+            const totalExp = parseFloat($(this).val()) || 0;
+            const relevantExp = parseFloat($('#relevant_experience').val()) || 0;
+            
+            if (relevantExp > totalExp) {
+                $('#relevant_experience').val(totalExp);
+            }
+        });
+    });
+
+    function clearFile() {
+        document.getElementById('resume').value = '';
+        document.getElementById('resumeUpload').innerHTML = `
+            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+            <h5>Upload Resume</h5>
+            <p class="text-muted">Drag and drop resume here or click to browse</p>
+            <div class="mt-2">
+                <small class="text-muted">Supported formats: PDF, DOC, DOCX (Max 5MB)</small>
+            </div>
+        `;
+    }
+</script>
+{% endblock %}

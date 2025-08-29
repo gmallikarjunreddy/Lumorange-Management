@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}Candidates - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .candidate-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .candidate-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .candidate-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+    }
+    .candidate-card-header {
+        position: relative;
+    }
+    .candidate-dropdown {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+    .candidate-dropdown .btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: 1px solid #dee2e6;
+        background: white;
+        color: #6c757d;
+        transition: all 0.2s ease;
+    }
+    .candidate-dropdown .btn:hover {
+        background: #f8f9fa;
+        border-color: #adb5bd;
+        color: #495057;
+        transform: scale(1.05);
+    }
+    .filter-card {
+        background: #f8f9fa;
+        border: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .experience-badge {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        border: none;
+    }
+    .salary-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-user-friends text-primary"></i> 
+                        Candidates Management
+                    </h2>
+                    <p class="text-muted mb-0">Manage candidate profiles, applications, and recruitment pipeline</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('add_candidate') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add New Candidate
+                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel"></i> Export to Excel</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf"></i> Export to PDF</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-csv"></i> Export to CSV</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label fw-semibold">Search Candidates</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" name="search" value="{{ search }}" 
+                                       placeholder="Name, email, company...">
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">All Status</option>
+                                <option value="New" {{ 'selected' if selected_status == 'New' }}>New</option>
+                                <option value="Shortlisted" {{ 'selected' if selected_status == 'Shortlisted' }}>Shortlisted</option>
+                                <option value="In Process" {{ 'selected' if selected_status == 'In Process' }}>In Process</option>
+                                <option value="Interview Scheduled" {{ 'selected' if selected_status == 'Interview Scheduled' }}>Interview Scheduled</option>
+                                <option value="Interviewed" {{ 'selected' if selected_status == 'Interviewed' }}>Interviewed</option>
+                                <option value="Selected" {{ 'selected' if selected_status == 'Selected' }}>Selected</option>
+                                <option value="Rejected" {{ 'selected' if selected_status == 'Rejected' }}>Rejected</option>
+                                <option value="On Hold" {{ 'selected' if selected_status == 'On Hold' }}>On Hold</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Source</label>
+                            <select class="form-select" name="source">
+                                <option value="">All Sources</option>
+                                <option value="Job Portal" {{ 'selected' if selected_source == 'Job Portal' }}>Job Portal</option>
+                                <option value="Referral" {{ 'selected' if selected_source == 'Referral' }}>Referral</option>
+                                <option value="Direct Application" {{ 'selected' if selected_source == 'Direct Application' }}>Direct Application</option>
+                                <option value="LinkedIn" {{ 'selected' if selected_source == 'LinkedIn' }}>LinkedIn</option>
+                                <option value="Campus Hiring" {{ 'selected' if selected_source == 'Campus Hiring' }}>Campus Hiring</option>
+                                <option value="Walk-in" {{ 'selected' if selected_source == 'Walk-in' }}>Walk-in</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Candidates Grid -->
+    <div class="row">
+        {% if candidates %}
+            {% for candidate in candidates %}
+            <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                <div class="card candidate-card h-100">
+                    <div class="card-body">
+                        <!-- Header with Avatar and Basic Info -->
+                        <div class="candidate-card-header mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="candidate-avatar me-3 flex-shrink-0">
+                                    {{ candidate.first_name[0] }}{{ candidate.last_name[0] }}
+                                </div>
+                                <div class="flex-grow-1 pe-5">
+                                    <h5 class="card-title mb-1 fw-bold">
+                                        {{ candidate.first_name }} {{ candidate.last_name }}
+                                    </h5>
+                                    <p class="text-muted mb-1">
+                                        <i class="fas fa-envelope text-primary me-1"></i>
+                                        {{ candidate.email }}
+                                    </p>
+                                    {% if candidate.phone %}
+                                    <p class="text-muted mb-0">
+                                        <i class="fas fa-phone text-success me-1"></i>
+                                        {{ candidate.phone }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="candidate-dropdown">
+                                <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{{ url_for('view_profile', candidate_id=candidate.id) }}"><i class="fas fa-eye"></i> View Details</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="editCandidate({{ candidate.id }})"><i class="fas fa-edit"></i> Edit Profile</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('schedule_interview') }}?candidate={{ candidate.id }}"><i class="fas fa-calendar-plus"></i> Schedule Interview</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteCandidate({{ candidate.id }})"><i class="fas fa-trash"></i> Delete</a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Status Badge -->
+                        <div class="mb-3">
+                            <span class="badge status-badge bg-{% if candidate.status == 'Selected' %}success{% elif candidate.status == 'Interview Scheduled' %}warning{% elif candidate.status == 'Rejected' %}danger{% elif candidate.status == 'Shortlisted' %}info{% else %}secondary{% endif %}">
+                                <i class="fas fa-{% if candidate.status == 'Selected' %}check-circle{% elif candidate.status == 'Interview Scheduled' %}calendar-check{% elif candidate.status == 'Rejected' %}times-circle{% elif candidate.status == 'Shortlisted' %}star{% else %}user-clock{% endif %} me-1"></i>
+                                {{ candidate.status }}
+                            </span>
+                            <span class="badge bg-light text-dark ms-2">
+                                <i class="fas fa-source me-1"></i>
+                                {{ candidate.source }}
+                            </span>
+                        </div>
+
+                        <!-- Professional Info -->
+                        {% if candidate.current_company %}
+                        <div class="mb-2">
+                            <strong class="text-primary">Current Role:</strong>
+                            <div class="ms-3">
+                                <i class="fas fa-building text-muted me-1"></i>
+                                {{ candidate.current_position or 'N/A' }} at {{ candidate.current_company }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Experience and Salary -->
+                        <div class="row mb-3">
+                            {% if candidate.total_experience %}
+                            <div class="col-6">
+                                <small class="text-muted d-block">Experience</small>
+                                <span class="badge experience-badge">
+                                    {{ candidate.total_experience }} Years
+                                </span>
+                            </div>
+                            {% endif %}
+                            {% if candidate.expected_salary %}
+                            <div class="col-6">
+                                <small class="text-muted d-block">Expected Salary</small>
+                                <span class="salary-info fw-semibold">
+                                    ₹{{ "{:,.0f}".format(candidate.expected_salary) }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Skills Preview -->
+                        {% if candidate.skills %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">Key Skills</small>
+                            <div class="skills-preview">
+                                {% set skills_list = candidate.skills.split(',')[:3] %}
+                                {% for skill in skills_list %}
+                                <span class="badge bg-light text-dark me-1 mb-1">{{ skill.strip() }}</span>
+                                {% endfor %}
+                                {% if candidate.skills.split(',')|length > 3 %}
+                                <span class="badge bg-secondary">+{{ candidate.skills.split(',')|length - 3 }} more</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Application Stats -->
+                        <div class="row text-center border-top pt-3">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Applications</small>
+                                <strong class="text-primary">{{ candidate.application_count or 0 }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Selections</small>
+                                <strong class="text-success">{{ candidate.selected_count or 0 }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Footer -->
+                    <div class="card-footer bg-transparent border-top-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-plus me-1"></i>
+                                Added 
+                                {% if candidate.created_at %}
+                                    {% if candidate.created_at.__class__.__name__ == 'datetime' %}
+                                        {{ candidate.created_at.strftime('%d %b %Y') }}
+                                    {% else %}
+                                        {{ candidate.created_at }}
+                                    {% endif %}
+                                {% else %}
+                                    Recently
+                                {% endif %}
+                            </small>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('view_profile', candidate_id=candidate.id) }}" class="btn btn-outline-primary" title="View Profile">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('schedule_interview') }}?candidate={{ candidate.id }}" class="btn btn-outline-success" title="Schedule Interview">
+                                    <i class="fas fa-calendar-check"></i>
+                                </a>
+                                <button class="btn btn-outline-info" onclick="sendMessage({{ candidate.id }})" title="Send Message">
+                                    <i class="fas fa-envelope"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-user-friends fa-5x text-muted opacity-25"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">No Candidates Found</h4>
+                    <p class="text-muted mb-4">
+                        {% if search or selected_status or selected_source %}
+                            Try adjusting your search criteria or filters.
+                        {% else %}
+                            Start building your talent pool by adding candidates.
+                        {% endif %}
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        {% if search or selected_status or selected_source %}
+                        <a href="{{ url_for('candidates') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-refresh"></i> Clear Filters
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('add_candidate') }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Add First Candidate
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Summary Stats -->
+    {% if candidates %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-primary mb-0">{{ candidates|length }}</h4>
+                            <small class="text-muted">Total Candidates</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success mb-0">
+                                {{ candidates|selectattr('status', 'equalto', 'Selected')|list|length }}
+                            </h4>
+                            <small class="text-muted">Selected</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning mb-0">
+                                {{ candidates|selectattr('status', 'equalto', 'Interview Scheduled')|list|length }}
+                            </h4>
+                            <small class="text-muted">Interview Scheduled</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-info mb-0">
+                                {{ candidates|selectattr('status', 'equalto', 'Shortlisted')|list|length }}
+                            </h4>
+                            <small class="text-muted">Shortlisted</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+
+    // Status update functionality
+    function updateCandidateStatus(candidateId, newStatus) {
+        // This would be an AJAX call to update status
+        console.log('Updating candidate', candidateId, 'to status', newStatus);
+        
+        fetch(`/candidate_action`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'update_status',
+                candidate_id: candidateId,
+                status: newStatus
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating status: ' + data.message);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('Error updating candidate status');
+        });
+    }
+
+    // Send message to candidate
+    function sendMessage(candidateId) {
+        const message = prompt('Enter your message to the candidate:');
+        if (message && message.trim()) {
+            fetch(`/candidate_action`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'send_message',
+                    candidate_id: candidateId,
+                    message: message.trim()
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Message sent successfully!');
+                } else {
+                    alert('Error sending message: ' + data.message);
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error sending message');
+            });
+        }
+    }
+
+    // Edit candidate
+    function editCandidate(candidateId) {
+        window.location.href = `/candidates/add?edit=${candidateId}`;
+    }
+
+    // Delete candidate
+    function deleteCandidate(candidateId) {
+        const confirmed = confirm('Are you sure you want to delete this candidate?\n\nThis will permanently delete:\n• Candidate profile\n• All job applications\n• All interview records\n• All related data\n\nThis action cannot be undone.');
+        
+        if (confirmed) {
+            // Show loading state
+            const deleteButtons = document.querySelectorAll(`[onclick="deleteCandidate(${candidateId})"]`);
+            deleteButtons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+            });
+            
+            fetch(`/candidate_action`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'delete',
+                    candidate_id: candidateId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message with details
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error deleting candidate: ' + data.message);
+                    // Restore button state
+                    deleteButtons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-trash"></i>';
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error deleting candidate');
+                // Restore button state
+                deleteButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i>';
+                });
+            });
+        }
+    }
+</script>
+</script>
+{% endblock %}

@@ -4,9 +4,38 @@ import MySQLdb.cursors
 from flask import request, redirect, url_for, flash, jsonify, make_response
 from datetime import datetime, date
 import json
+import uuid
+import random
+import string
 
 app = Flask(__name__)
 app.secret_key = 'lumorange_secret_key'
+
+# Template context processor to add common functions
+@app.context_processor
+def inject_date_functions():
+    return {
+        'today': lambda: date.today(),
+        'datetime': datetime,
+        'date': date
+    }
+
+def generate_interview_code():
+    """Generate a unique interview code"""
+    # Generate a random 3-letter + 3-digit code like INT001, INT002, etc.
+    prefix = "INT"
+    suffix = str(random.randint(100, 999))
+    return f"{prefix}{suffix}"
+
+def get_unique_interview_code():
+    """Get a unique interview code that doesn't exist in database"""
+    cur = mysql.connection.cursor()
+    while True:
+        code = generate_interview_code()
+        cur.execute("SELECT id FROM interviews WHERE interview_code = %s", (code,))
+        if not cur.fetchone():
+            cur.close()
+            return code
 
 # Template filters
 @app.template_filter('days_since_hire')
@@ -904,14 +933,10 @@ def employee_projects():
     
     cur.close()
     
-    from datetime import date
-    today = date.today().strftime('%Y-%m-%d')
-    
     return render_template('employee_projects.html', 
                          employee_projects=employee_projects, 
                          employees=employees, 
-                         projects=projects,
-                         today=today)
+                         projects=projects)
 
 @app.route('/assign_employee_project', methods=['POST'])
 def assign_employee_project():
@@ -2525,6 +2550,829 @@ def export_payroll_data():
         flash('Error preparing export!', 'danger')
         return redirect(url_for('payroll'))
 
+# =====================================================
+# RECRUITMENT & INTERVIEW MANAGEMENT SYSTEM
+# =====================================================
+
+@app.route('/recruitment')
+def recruitment_dashboard():
+    """Recruitment Dashboard with Analytics"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get recruitment analytics
+        cur.execute("""
+            SELECT 
+                COUNT(DISTINCT jp.id) as total_positions,
+                COUNT(DISTINCT CASE WHEN jp.status = 'Open' THEN jp.id END) as open_positions,
+                COUNT(DISTINCT ja.id) as total_applications,
+                COUNT(DISTINCT CASE WHEN ja.status IN ('Applied', 'Under Review', 'Shortlisted') THEN ja.id END) as active_applications,
+                COUNT(DISTINCT i.id) as total_interviews,
+                COUNT(DISTINCT CASE WHEN i.status = 'Scheduled' THEN i.id END) as scheduled_interviews,
+                COUNT(DISTINCT jo.id) as total_offers,
+                COUNT(DISTINCT CASE WHEN jo.status = 'Sent' THEN jo.id END) as pending_offers
+            FROM job_positions jp
+            LEFT JOIN job_applications ja ON jp.id = ja.job_position_id
+            LEFT JOIN interviews i ON ja.id = i.application_id
+            LEFT JOIN job_offers jo ON ja.id = jo.application_id
+        """)
+        analytics = cur.fetchone()
+        
+        # Get recent applications
+        cur.execute("""
+            SELECT ja.*, c.first_name, c.last_name, c.email, jp.position_title,
+                   COALESCE(d.name, 'No Department') as department_name,
+                   DATE(ja.application_date) as app_date
+            FROM job_applications ja
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            ORDER BY ja.application_date DESC
+            LIMIT 10
+        """)
+        recent_applications = cur.fetchall()
+        
+        # Get upcoming interviews
+        cur.execute("""
+            SELECT i.*, c.first_name, c.last_name, jp.position_title, it.type_name,
+                   DATE(i.scheduled_date) as interview_date,
+                   TIME(i.scheduled_time) as interview_time
+            FROM interviews i
+            JOIN job_applications ja ON i.application_id = ja.id
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            JOIN interview_types it ON i.interview_type_id = it.id
+            WHERE i.scheduled_date >= CURDATE() AND i.status = 'Scheduled'
+            ORDER BY i.scheduled_date ASC, i.scheduled_time ASC
+            LIMIT 10
+        """)
+        upcoming_interviews = cur.fetchall()
+        
+        # Get pipeline statistics
+        cur.execute("""
+            SELECT 
+                ja.status,
+                COUNT(*) as count
+            FROM job_applications ja
+            WHERE ja.status IN ('Applied', 'Under Review', 'Shortlisted', 'Interview Scheduled', 'Interviewed', 'Selected', 'Offer Extended')
+            GROUP BY ja.status
+            ORDER BY FIELD(ja.status, 'Applied', 'Under Review', 'Shortlisted', 'Interview Scheduled', 'Interviewed', 'Selected', 'Offer Extended')
+        """)
+        pipeline_stats = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('recruitment_dashboard.html', 
+                             analytics=analytics or {},
+                             recent_applications=recent_applications or [],
+                             upcoming_interviews=upcoming_interviews or [],
+                             pipeline_stats=pipeline_stats or [])
+    
+    except Exception as e:
+        flash(f'Error loading recruitment dashboard: {str(e)}', 'danger')
+        return render_template('recruitment_dashboard.html', 
+                             analytics={}, recent_applications=[], 
+                             upcoming_interviews=[], pipeline_stats=[])
+
+@app.route('/candidates')
+def candidates():
+    """Candidates Listing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get search parameters
+        search = request.args.get('search', '')
+        status = request.args.get('status', '')
+        source = request.args.get('source', '')
+        
+        # Build query
+        query = """
+            SELECT c.*, 
+                   COUNT(ja.id) as application_count,
+                   COUNT(CASE WHEN ja.status = 'Selected' THEN 1 END) as selected_count
+            FROM candidates c
+            LEFT JOIN job_applications ja ON c.id = ja.candidate_id
+            WHERE 1=1
+        """
+        params = []
+        
+        if search:
+            query += " AND (c.first_name LIKE %s OR c.last_name LIKE %s OR c.email LIKE %s OR c.current_company LIKE %s)"
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
+            
+        if status:
+            query += " AND c.status = %s"
+            params.append(status)
+            
+        if source:
+            query += " AND c.source = %s"
+            params.append(source)
+            
+        query += " GROUP BY c.id ORDER BY c.created_at DESC"
+        
+        cur.execute(query, params)
+        candidates_list = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('candidates.html', 
+                             candidates=candidates_list or [],
+                             search=search,
+                             selected_status=status,
+                             selected_source=source)
+    
+    except Exception as e:
+        flash(f'Error loading candidates: {str(e)}', 'danger')
+        return render_template('candidates.html', candidates=[])
+
+@app.route('/candidates/add', methods=['GET', 'POST'])
+def add_candidate():
+    """Add New Candidate or Edit Existing"""
+    edit_id = request.args.get('edit')
+    candidate = None
+    
+    # If editing, fetch the candidate
+    if edit_id:
+        try:
+            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cur.execute("SELECT * FROM candidates WHERE id = %s", (edit_id,))
+            candidate = cur.fetchone()
+            cur.close()
+            
+            if not candidate:
+                flash('Candidate not found!', 'danger')
+                return redirect(url_for('candidates'))
+        except Exception as e:
+            flash(f'Error loading candidate: {str(e)}', 'danger')
+            return redirect(url_for('candidates'))
+    
+    if request.method == 'POST':
+        try:
+            cur = mysql.connection.cursor()
+            
+            if edit_id:
+                # Update existing candidate
+                cur.execute("""
+                    UPDATE candidates SET 
+                        first_name = %s, last_name = %s, email = %s, phone = %s,
+                        current_company = %s, current_position = %s, current_salary = %s, 
+                        expected_salary = %s, total_experience = %s, skills = %s, 
+                        source = %s, notes = %s
+                    WHERE id = %s
+                """, (
+                    request.form['first_name'],
+                    request.form['last_name'], 
+                    request.form['email'],
+                    request.form['phone'],
+                    request.form.get('current_company'),
+                    request.form.get('current_position'),
+                    float(request.form['current_salary']) if request.form.get('current_salary') else None,
+                    float(request.form['expected_salary']) if request.form.get('expected_salary') else None,
+                    float(request.form['total_experience']) if request.form.get('total_experience') else None,
+                    request.form.get('skills'),
+                    request.form['source'],
+                    request.form.get('notes'),
+                    edit_id
+                ))
+                flash('Candidate updated successfully!', 'success')
+            else:
+                # Generate candidate ID
+                cur.execute("SELECT COUNT(*) as count FROM candidates")
+                result = cur.fetchone()
+                count = result[0] if result else 0
+                candidate_id = f"CAND{str(count + 1).zfill(6)}"
+                
+                # Insert candidate
+                cur.execute("""
+                    INSERT INTO candidates (candidate_id, first_name, last_name, email, phone, 
+                                          current_company, current_position, current_salary, expected_salary,
+                                          total_experience, skills, source, notes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    candidate_id,
+                    request.form['first_name'],
+                    request.form['last_name'], 
+                    request.form['email'],
+                    request.form['phone'],
+                    request.form.get('current_company'),
+                    request.form.get('current_position'),
+                    float(request.form['current_salary']) if request.form.get('current_salary') else None,
+                    float(request.form['expected_salary']) if request.form.get('expected_salary') else None,
+                    float(request.form['total_experience']) if request.form.get('total_experience') else None,
+                    request.form.get('skills'),
+                    request.form['source'],
+                    request.form.get('notes')
+                ))
+                flash('Candidate added successfully!', 'success')
+            
+            mysql.connection.commit()
+            cur.close()
+            
+            return redirect(url_for('candidates'))
+            
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'Error {"updating" if edit_id else "adding"} candidate: {str(e)}', 'danger')
+    
+    return render_template('candidate_form.html', candidate=candidate)
+
+@app.route('/job_positions')
+def job_positions():
+    """Job Positions Listing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get search parameters
+        search = request.args.get('search', '')
+        department = request.args.get('department', '')
+        status = request.args.get('status', '')
+        
+        # Build query
+        query = """
+            SELECT jp.*, COALESCE(d.name, 'No Department') as department_name,
+                   COUNT(ja.id) as application_count,
+                   COUNT(CASE WHEN ja.status = 'Selected' THEN 1 END) as selected_count
+            FROM job_positions jp
+            LEFT JOIN departments d ON jp.department_id = d.id
+            LEFT JOIN job_applications ja ON jp.id = ja.job_position_id
+            WHERE 1=1
+        """
+        params = []
+        
+        if search:
+            query += " AND (jp.position_title LIKE %s OR jp.job_description LIKE %s)"
+            params.extend([f'%{search}%', f'%{search}%'])
+            
+        if department:
+            query += " AND jp.department_id = %s"
+            params.append(department)
+            
+        if status:
+            query += " AND jp.status = %s"
+            params.append(status)
+            
+        query += " GROUP BY jp.id ORDER BY jp.created_at DESC"
+        
+        cur.execute(query, params)
+        positions = cur.fetchall()
+        
+        # Get departments for filter
+        cur.execute("SELECT * FROM departments ORDER BY name")
+        departments = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('job_positions.html', 
+                             positions=positions or [],
+                             departments=departments or [],
+                             search=search,
+                             selected_department=department,
+                             selected_status=status)
+    
+    except Exception as e:
+        flash(f'Error loading job positions: {str(e)}', 'danger')
+        return render_template('job_positions.html', positions=[], departments=[])
+
+@app.route('/job_positions/add', methods=['GET', 'POST'])
+def add_job_position():
+    """Add New Job Position"""
+    if request.method == 'POST':
+        try:
+            cur = mysql.connection.cursor()
+            
+            cur.execute("""
+                INSERT INTO job_positions (position_title, department_id, job_description, required_skills,
+                                         experience_level, employment_type, salary_min, salary_max, location,
+                                         posted_date, closing_date, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                request.form['position_title'],
+                request.form['department_id'] if request.form['department_id'] else None,
+                request.form['job_description'],
+                request.form['required_skills'],
+                request.form['experience_level'],
+                request.form['employment_type'],
+                float(request.form['salary_min']) if request.form['salary_min'] else None,
+                float(request.form['salary_max']) if request.form['salary_max'] else None,
+                request.form['location'],
+                request.form['posted_date'],
+                request.form['closing_date'] if request.form['closing_date'] else None,
+                'admin'  # Replace with actual user session
+            ))
+            
+            mysql.connection.commit()
+            cur.close()
+            
+            flash('Job position created successfully!', 'success')
+            return redirect(url_for('job_positions'))
+            
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'Error creating job position: {str(e)}', 'danger')
+    
+    # GET request - show form
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("SELECT * FROM departments ORDER BY name")
+        departments = cur.fetchall()
+        cur.close()
+        
+        return render_template('job_position_form.html', departments=departments or [], position=None)
+    
+    except Exception as e:
+        flash(f'Error loading form: {str(e)}', 'danger')
+        return render_template('job_position_form.html', departments=[], position=None)
+
+@app.route('/interviews')
+def interviews():
+    """Interviews Listing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get filter parameters
+        status = request.args.get('status', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        
+        # Build query
+        query = """
+            SELECT i.*, c.first_name, c.last_name, c.email, jp.position_title,
+                   it.type_name, COALESCE(d.name, 'No Department') as department_name,
+                   DATE(i.scheduled_date) as interview_date,
+                   TIME(i.scheduled_time) as interview_time
+            FROM interviews i
+            JOIN job_applications ja ON i.application_id = ja.id
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            JOIN interview_types it ON i.interview_type_id = it.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if status:
+            query += " AND i.status = %s"
+            params.append(status)
+            
+        if date_from:
+            query += " AND i.scheduled_date >= %s"
+            params.append(date_from)
+            
+        if date_to:
+            query += " AND i.scheduled_date <= %s"
+            params.append(date_to)
+            
+        query += " ORDER BY i.scheduled_date DESC, i.scheduled_time DESC"
+        
+        cur.execute(query, params)
+        interviews_list = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('interviews.html', 
+                             interviews=interviews_list or [],
+                             selected_status=status,
+                             date_from=date_from,
+                             date_to=date_to)
+    
+    except Exception as e:
+        flash(f'Error loading interviews: {str(e)}', 'danger')
+        return render_template('interviews.html', interviews=[])
+
+@app.route('/schedule_interview', methods=['GET', 'POST'])
+@app.route('/edit_interview/<int:interview_id>', methods=['GET', 'POST'])
+def schedule_interview(interview_id=None):
+    """Schedule or Edit Interview"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        if request.method == 'POST':
+            action = request.form.get('action')
+            
+            if action == 'delete' and interview_id:
+                # Delete interview
+                cur.execute("DELETE FROM interviews WHERE id = %s", (interview_id,))
+                mysql.connection.commit()
+                flash('Interview deleted successfully!', 'success')
+                return redirect(url_for('interviews'))
+            
+            elif action == 'schedule':
+                # Get form data
+                application_id = request.form.get('application_id')
+                interview_type_id = request.form.get('interview_type_id')
+                interview_round = request.form.get('interview_round')
+                scheduled_date = request.form.get('scheduled_date')
+                scheduled_time = request.form.get('scheduled_time')
+                duration_minutes = request.form.get('duration_minutes')
+                interview_mode = request.form.get('interview_mode')
+                meeting_room = request.form.get('meeting_room')
+                meeting_link = request.form.get('meeting_link')
+                interviewer_notes = request.form.get('interviewer_notes')
+                
+                if interview_id:
+                    # Update existing interview
+                    query = """
+                        UPDATE interviews SET
+                        application_id = %s, interview_type_id = %s, interview_round = %s,
+                        scheduled_date = %s, scheduled_time = %s, duration_minutes = %s,
+                        interview_mode = %s, meeting_room = %s, meeting_link = %s,
+                        interviewer_notes = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                    """
+                    params = (application_id, interview_type_id, interview_round,
+                             scheduled_date, scheduled_time, duration_minutes,
+                             interview_mode, meeting_room, meeting_link,
+                             interviewer_notes, interview_id)
+                    
+                    cur.execute(query, params)
+                    flash('Interview updated successfully!', 'success')
+                else:
+                    # Create new interview - generate unique interview code
+                    interview_code = get_unique_interview_code()
+                    
+                    query = """
+                        INSERT INTO interviews (
+                            interview_code, application_id, interview_type_id, interview_round,
+                            scheduled_date, scheduled_time, duration_minutes,
+                            interview_mode, meeting_room, meeting_link,
+                            interviewer_notes, status, created_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Scheduled', CURRENT_TIMESTAMP)
+                    """
+                    params = (interview_code, application_id, interview_type_id, interview_round,
+                             scheduled_date, scheduled_time, duration_minutes,
+                             interview_mode, meeting_room, meeting_link,
+                             interviewer_notes)
+                    
+                    cur.execute(query, params)
+                    flash('Interview scheduled successfully!', 'success')
+                
+                mysql.connection.commit()
+                return redirect(url_for('interviews'))
+        
+        # GET request - load form
+        interview = None
+        if interview_id:
+            cur.execute("SELECT * FROM interviews WHERE id = %s", (interview_id,))
+            interview = cur.fetchone()
+            if not interview:
+                flash('Interview not found!', 'error')
+                return redirect(url_for('interviews'))
+        
+        # Load job applications with candidate and position details
+        cur.execute("""
+            SELECT ja.id, 
+                   CONCAT(c.first_name, ' ', c.last_name) as candidate_name,
+                   c.email as candidate_email,
+                   jp.position_title,
+                   COALESCE(d.name, 'No Department') as department_name
+            FROM job_applications ja
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            WHERE ja.status IN ('Applied', 'Under Review', 'Interview Scheduled')
+            ORDER BY ja.application_date DESC
+        """)
+        applications = cur.fetchall()
+        
+        # Load interview types
+        cur.execute("SELECT * FROM interview_types ORDER BY type_name")
+        interview_types = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('interview_form.html',
+                             interview=interview,
+                             applications=applications,
+                             interview_types=interview_types)
+    
+    except Exception as e:
+        flash(f'Error loading interview form: {str(e)}', 'danger')
+        return redirect(url_for('interviews'))
+
+@app.route('/applications')
+def applications():
+    """Job Applications Listing"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get filter parameters
+        status = request.args.get('status', '')
+        position = request.args.get('position', '')
+        date_from = request.args.get('date_from', '')
+        
+        # Build query
+        query = """
+            SELECT ja.*, 
+                   c.first_name, c.last_name, c.email, c.phone, c.current_company, 
+                   c.total_experience, c.skills, c.resume_path,
+                   jp.position_title, 
+                   COALESCE(d.name, 'No Department') as department_name
+            FROM job_applications ja
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if status:
+            query += " AND ja.status = %s"
+            params.append(status)
+            
+        if position:
+            query += " AND ja.job_position_id = %s"
+            params.append(position)
+            
+        if date_from:
+            query += " AND ja.application_date >= %s"
+            params.append(date_from)
+            
+        query += " ORDER BY ja.application_date DESC"
+        
+        cur.execute(query, params)
+        applications_list = cur.fetchall()
+        
+        # Get all positions for filter dropdown
+        cur.execute("SELECT id, position_title FROM job_positions WHERE status = 'Open' ORDER BY position_title")
+        positions = cur.fetchall()
+        
+        cur.close()
+        
+        return render_template('applications.html',
+                             applications=applications_list or [],
+                             positions=positions or [],
+                             selected_status=status,
+                             selected_position=position,
+                             date_from=date_from)
+    
+    except Exception as e:
+        flash(f'Error loading applications: {str(e)}', 'danger')
+        return render_template('applications.html', applications=[], positions=[])
+
+@app.route('/update_application_status', methods=['POST'])
+def update_application_status():
+    """Update Job Application Status via AJAX"""
+    try:
+        application_id = request.form.get('application_id')
+        new_status = request.form.get('status')
+        
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE job_applications 
+            SET status = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (new_status, application_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True, 'message': 'Status updated successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/recruitment_reports')
+def recruitment_reports():
+    """Recruitment Analytics and Reports"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get key metrics
+        # Total applications
+        cur.execute("SELECT COUNT(*) as total FROM job_applications")
+        total_applications = cur.fetchone()['total']
+        
+        # Applications under review
+        cur.execute("SELECT COUNT(*) as count FROM job_applications WHERE status = 'Under Review'")
+        applications_under_review = cur.fetchone()['count']
+        
+        # Interviews scheduled
+        cur.execute("SELECT COUNT(*) as count FROM interviews WHERE status = 'Scheduled'")
+        interviews_scheduled = cur.fetchone()['count']
+        
+        # Offers extended
+        cur.execute("SELECT COUNT(*) as count FROM job_applications WHERE status = 'Offer Extended'")
+        offers_extended = cur.fetchone()['count']
+        
+        # Hires made
+        cur.execute("SELECT COUNT(*) as count FROM job_applications WHERE status = 'Hired'")
+        hires_made = cur.fetchone()['count']
+        
+        # Calculate rates
+        conversion_rate = (hires_made / total_applications * 100) if total_applications > 0 else 0
+        interview_success_rate = (offers_extended / interviews_scheduled * 100) if interviews_scheduled > 0 else 0
+        offer_acceptance_rate = (hires_made / offers_extended * 100) if offers_extended > 0 else 0
+        
+        # Average time to hire (mock data for now)
+        average_time_to_hire = 21
+        
+        # Top performing positions
+        cur.execute("""
+            SELECT jp.position_title, 
+                   COALESCE(d.name, 'No Department') as department_name,
+                   COUNT(ja.id) as application_count,
+                   SUM(CASE WHEN ja.status = 'Interview Scheduled' THEN 1 ELSE 0 END) as interview_count,
+                   SUM(CASE WHEN ja.status = 'Offer Extended' THEN 1 ELSE 0 END) as offer_count,
+                   SUM(CASE WHEN ja.status = 'Hired' THEN 1 ELSE 0 END) as hire_count
+            FROM job_positions jp
+            LEFT JOIN job_applications ja ON jp.id = ja.job_position_id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            GROUP BY jp.id, jp.position_title, d.name
+            HAVING COUNT(ja.id) > 0
+            ORDER BY hire_count DESC, application_count DESC
+            LIMIT 10
+        """)
+        top_positions = cur.fetchall()
+        
+        # Recent activities (mock data)
+        recent_activities = [
+            {
+                'icon': 'user-plus',
+                'color': 'success',
+                'title': 'New Application Received',
+                'description': 'John Doe applied for Software Developer position',
+                'timestamp': datetime.now()
+            },
+            {
+                'icon': 'calendar-check',
+                'color': 'info',
+                'title': 'Interview Scheduled',
+                'description': 'Interview scheduled with Sarah Smith for Marketing Manager',
+                'timestamp': datetime.now()
+            },
+            {
+                'icon': 'handshake',
+                'color': 'warning',
+                'title': 'Offer Extended',
+                'description': 'Offer extended to Mike Johnson for HR Manager position',
+                'timestamp': datetime.now()
+            }
+        ]
+        
+        cur.close()
+        
+        return render_template('recruitment_reports.html',
+                             total_applications=total_applications,
+                             applications_under_review=applications_under_review,
+                             interviews_scheduled=interviews_scheduled,
+                             offers_extended=offers_extended,
+                             hires_made=hires_made,
+                             conversion_rate=round(conversion_rate, 1),
+                             interview_success_rate=round(interview_success_rate, 1),
+                             offer_acceptance_rate=round(offer_acceptance_rate, 1),
+                             average_time_to_hire=average_time_to_hire,
+                             top_positions=top_positions,
+                             recent_activities=recent_activities)
+    
+    except Exception as e:
+        flash(f'Error loading reports: {str(e)}', 'danger')
+        return render_template('recruitment_reports.html',
+                             total_applications=0,
+                             applications_under_review=0,
+                             interviews_scheduled=0,
+                             offers_extended=0,
+                             hires_made=0,
+                             conversion_rate=0,
+                             interview_success_rate=0,
+                             offer_acceptance_rate=0,
+                             average_time_to_hire=0,
+                             top_positions=[],
+                             recent_activities=[])
+
+@app.route('/offers')
+def offers():
+    """Job Offers Management"""
+    return render_template('offers.html', title='Job Offers')
+
+@app.route('/video_interview/<int:interview_id>')
+def video_interview(interview_id):
+    """Video Interview Room"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get interview details
+        cur.execute("""
+            SELECT i.*, 
+                   CONCAT(c.first_name, ' ', c.last_name) as candidate_name,
+                   c.email as candidate_email,
+                   jp.position_title,
+                   it.type_name as interview_type,
+                   DATE(i.scheduled_date) as interview_date,
+                   TIME(i.scheduled_time) as interview_time
+            FROM interviews i
+            JOIN job_applications ja ON i.application_id = ja.id
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            JOIN interview_types it ON i.interview_type_id = it.id
+            WHERE i.id = %s
+        """, (interview_id,))
+        
+        interview = cur.fetchone()
+        if not interview:
+            flash('Interview not found!', 'error')
+            return redirect(url_for('interviews'))
+        
+        # Generate meeting ID and URL
+        import uuid
+        meeting_id = f"interview-{interview_id}-{str(uuid.uuid4())[:8]}"
+        meeting_url = f"https://meet.jit.si/{meeting_id}"
+        
+        # Update meeting link in database
+        cur.execute("""
+            UPDATE interviews 
+            SET meeting_link = %s, status = 'In Progress' 
+            WHERE id = %s
+        """, (meeting_url, interview_id))
+        mysql.connection.commit()
+        
+        cur.close()
+        
+        return render_template('video_interview.html',
+                             interview=interview,
+                             meeting_id=meeting_id,
+                             meeting_url=meeting_url)
+    
+    except Exception as e:
+        flash(f'Error loading video interview: {str(e)}', 'danger')
+        return redirect(url_for('interviews'))
+
+@app.route('/update_interview_status/<int:interview_id>', methods=['POST'])
+def update_interview_status(interview_id):
+    """Update Interview Status via AJAX"""
+    try:
+        status = request.form.get('status')
+        
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE interviews 
+            SET status = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (status, interview_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/update_interview_notes/<int:interview_id>', methods=['POST'])
+def update_interview_notes(interview_id):
+    """Update Interview Notes and Feedback"""
+    try:
+        notes = request.form.get('notes', '')
+        overall_score = request.form.get('overall_score')
+        recommendation = request.form.get('recommendation')
+        
+        # Convert empty string to None for decimal fields
+        if overall_score == '' or overall_score is None:
+            overall_score = None
+        else:
+            try:
+                overall_score = float(overall_score)
+            except (ValueError, TypeError):
+                overall_score = None
+        
+        # Handle recommendation field
+        if recommendation == '' or recommendation is None:
+            recommendation = None
+        
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE interviews 
+            SET interviewer_notes = %s, overall_score = %s, recommendation = %s,
+                status = 'Completed', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (notes, overall_score, recommendation, interview_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        flash('Interview notes saved successfully!', 'success')
+        return redirect(url_for('interviews'))
+    
+    except Exception as e:
+        flash(f'Error saving notes: {str(e)}', 'danger')
+        return redirect(url_for('video_interview', interview_id=interview_id))
+
+@app.route('/auto_save_notes/<int:interview_id>', methods=['POST'])
+def auto_save_notes(interview_id):
+    """Auto-save Interview Notes via AJAX"""
+    try:
+        notes = request.form.get('notes')
+        
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE interviews 
+            SET interviewer_notes = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (notes, interview_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 # Context processor to add global variables
 @app.context_processor
 def inject_globals():
@@ -2536,6 +3384,288 @@ def inject_globals():
         'currency_name': 'Indian Rupee',
         'format_currency': format_currency
     }
+
+# Route aliases for compatibility
+@app.route('/add_candidate')
+def add_candidate_alias():
+    """Redirect to candidates/add"""
+    return redirect(url_for('add_candidate'))
+
+@app.route('/add_job_position')
+def add_job_position_alias():
+    """Redirect to job_positions/add"""
+    return redirect(url_for('add_job_position'))
+
+# Interview action routes
+@app.route('/start_interview/<int:interview_id>')
+def start_interview(interview_id):
+    """Start Interview - Redirect to Video Interview"""
+    return redirect(url_for('video_interview', interview_id=interview_id))
+
+@app.route('/reschedule_interview/<int:interview_id>')
+def reschedule_interview(interview_id):
+    """Reschedule Interview"""
+    # Redirect to interview form for editing
+    return redirect(url_for('interviews') + f'?edit={interview_id}')
+
+@app.route('/cancel_interview/<int:interview_id>', methods=['POST'])
+def cancel_interview(interview_id):
+    """Cancel Interview"""
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE interviews 
+            SET status = 'Cancelled', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (interview_id,))
+        mysql.connection.commit()
+        cur.close()
+        
+        flash('Interview cancelled successfully!', 'success')
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        flash(f'Error cancelling interview: {str(e)}', 'danger')
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/complete_interview/<int:interview_id>', methods=['POST'])
+def complete_interview(interview_id):
+    """Complete Interview"""
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE interviews 
+            SET status = 'Completed', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (interview_id,))
+        mysql.connection.commit()
+        cur.close()
+        
+        flash('Interview marked as completed!', 'success')
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        flash(f'Error completing interview: {str(e)}', 'danger')
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/view_feedback/<int:interview_id>')
+def view_feedback(interview_id):
+    """View Interview Feedback"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT i.*, c.first_name, c.last_name, jp.position_title,
+                   it.type_name as interview_type
+            FROM interviews i
+            JOIN job_applications ja ON i.application_id = ja.id
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            JOIN interview_types it ON i.interview_type_id = it.id
+            WHERE i.id = %s
+        """, (interview_id,))
+        interview = cur.fetchone()
+        cur.close()
+        
+        if not interview:
+            flash('Interview not found!', 'danger')
+            return redirect(url_for('interviews'))
+        
+        return render_template('interview_feedback.html', interview=interview)
+    
+    except Exception as e:
+        flash(f'Error loading interview feedback: {str(e)}', 'danger')
+        return redirect(url_for('interviews'))
+
+@app.route('/download_report/<int:interview_id>')
+def download_report(interview_id):
+    """Download Interview Report"""
+    flash('Interview report download feature coming soon!', 'info')
+    return redirect(url_for('interviews'))
+
+@app.route('/view_details/<int:interview_id>')
+def view_details(interview_id):
+    """View Interview Details"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT i.*, c.first_name, c.last_name, c.email, c.phone,
+                   jp.position_title, jp.job_description,
+                   it.type_name as interview_type,
+                   COALESCE(d.name, 'No Department') as department_name
+            FROM interviews i
+            JOIN job_applications ja ON i.application_id = ja.id
+            JOIN candidates c ON ja.candidate_id = c.id
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            JOIN interview_types it ON i.interview_type_id = it.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            WHERE i.id = %s
+        """, (interview_id,))
+        interview = cur.fetchone()
+        cur.close()
+        
+        if not interview:
+            flash('Interview not found!', 'danger')
+            return redirect(url_for('interviews'))
+        
+        return render_template('interview_details.html', interview=interview)
+    
+    except Exception as e:
+        flash(f'Error loading interview details: {str(e)}', 'danger')
+        return redirect(url_for('interviews'))
+
+# Application action routes
+@app.route('/update_status/<int:application_id>/<status>', methods=['POST'])
+def update_status(application_id, status):
+    """Update Application Status"""
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE job_applications 
+            SET status = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (status, application_id))
+        mysql.connection.commit()
+        cur.close()
+        
+        return jsonify({'success': True, 'message': f'Status updated to {status}'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/download_resume/<int:application_id>')
+def download_resume(application_id):
+    """Download Candidate Resume"""
+    flash('Resume download feature coming soon!', 'info')
+    return redirect(url_for('applications'))
+
+@app.route('/send_message/<int:application_id>')
+def send_message(application_id):
+    """Send Message to Candidate"""
+    flash('Messaging feature coming soon!', 'info')
+    return redirect(url_for('applications'))
+
+@app.route('/view_profile/<int:candidate_id>')
+def view_profile(candidate_id):
+    """View Candidate Profile"""
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT c.*, 
+                   COUNT(ja.id) as total_applications,
+                   COUNT(CASE WHEN ja.status = 'Selected' THEN 1 END) as successful_applications
+            FROM candidates c
+            LEFT JOIN job_applications ja ON c.id = ja.candidate_id
+            WHERE c.id = %s
+            GROUP BY c.id
+        """, (candidate_id,))
+        candidate = cur.fetchone()
+        
+        # Get candidate's application history
+        cur.execute("""
+            SELECT ja.*, jp.position_title, jp.department_id,
+                   COALESCE(d.name, 'No Department') as department_name
+            FROM job_applications ja
+            JOIN job_positions jp ON ja.job_position_id = jp.id
+            LEFT JOIN departments d ON jp.department_id = d.id
+            WHERE ja.candidate_id = %s
+            ORDER BY ja.application_date DESC
+        """, (candidate_id,))
+        applications = cur.fetchall()
+        
+        cur.close()
+        
+        if not candidate:
+            flash('Candidate not found!', 'danger')
+            return redirect(url_for('candidates'))
+        
+        return render_template('candidate_profile.html', candidate=candidate, applications=applications)
+    
+    except Exception as e:
+        flash(f'Error loading candidate profile: {str(e)}', 'danger')
+        return redirect(url_for('candidates'))
+
+@app.route('/candidate_action', methods=['POST'])
+def candidate_action():
+    """Handle candidate actions via AJAX"""
+    try:
+        data = request.get_json()
+        action = data.get('action')
+        candidate_id = data.get('candidate_id')
+        
+        if not action or not candidate_id:
+            return jsonify({'success': False, 'message': 'Missing required parameters'})
+        
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        if action == 'update_status':
+            status = data.get('status')
+            if not status:
+                return jsonify({'success': False, 'message': 'Status is required'})
+            
+            cur.execute("UPDATE candidates SET status = %s WHERE id = %s", (status, candidate_id))
+            mysql.connection.commit()
+            
+            return jsonify({'success': True, 'message': 'Status updated successfully'})
+        
+        elif action == 'send_message':
+            message = data.get('message')
+            if not message:
+                return jsonify({'success': False, 'message': 'Message is required'})
+            
+            # Here you would typically integrate with an email service or messaging system
+            # For now, we'll just log the action and return success
+            print(f"Message to candidate {candidate_id}: {message}")
+            
+            return jsonify({'success': True, 'message': 'Message sent successfully'})
+        
+        elif action == 'delete':
+            # Check if candidate has any applications and show warning
+            cur.execute("SELECT COUNT(*) as app_count FROM job_applications WHERE candidate_id = %s", (candidate_id,))
+            app_count = cur.fetchone()['app_count']
+            
+            # Check if candidate has any interviews through applications
+            cur.execute("""
+                SELECT COUNT(*) as interview_count 
+                FROM interviews i 
+                JOIN job_applications ja ON i.application_id = ja.id 
+                WHERE ja.candidate_id = %s
+            """, (candidate_id,))
+            interview_count = cur.fetchone()['interview_count']
+            
+            # Get candidate name for the confirmation message
+            cur.execute("SELECT first_name, last_name FROM candidates WHERE id = %s", (candidate_id,))
+            candidate_info = cur.fetchone()
+            
+            if not candidate_info:
+                return jsonify({'success': False, 'message': 'Candidate not found'})
+            
+            candidate_name = f"{candidate_info['first_name']} {candidate_info['last_name']}"
+            
+            # Delete the candidate (CASCADE will handle related records)
+            cur.execute("DELETE FROM candidates WHERE id = %s", (candidate_id,))
+            mysql.connection.commit()
+            
+            # Prepare success message with details
+            message = f'Candidate "{candidate_name}" deleted successfully'
+            if app_count > 0 or interview_count > 0:
+                details = []
+                if app_count > 0:
+                    details.append(f"{app_count} application(s)")
+                if interview_count > 0:
+                    details.append(f"{interview_count} interview(s)")
+                message += f" (along with {" and ".join(details)})"
+            
+            return jsonify({'success': True, 'message': message})
+        
+        else:
+            return jsonify({'success': False, 'message': 'Invalid action'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    
+    finally:
+        if 'cur' in locals():
+            cur.close()
 
 if __name__ == '__main__':
     app.run(debug=True)

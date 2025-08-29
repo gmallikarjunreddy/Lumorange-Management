@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+
+{% block title %}Recruitment Reports - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        border: none;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .metric-change {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+    
+    .report-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title i {
+        margin-right: 0.5rem;
+        color: #667eea;
+    }
+    
+    .progress-item {
+        margin-bottom: 1rem;
+    }
+    
+    .progress-label {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .progress {
+        height: 10px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table-modern {
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table-modern thead th {
+        background: #f8f9fa;
+        border: none;
+        font-weight: 600;
+        color: #495057;
+        padding: 1rem;
+    }
+    
+    .table-modern tbody td {
+        border: none;
+        padding: 1rem;
+        vertical-align: middle;
+    }
+    
+    .table-modern tbody tr {
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .table-modern tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .filter-tabs {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 0.25rem;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-tab {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .filter-tab.active {
+        background: white;
+        color: #667eea;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .chart-placeholder {
+        height: 300px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        flex-direction: column;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-chart-bar text-primary"></i> 
+                        Recruitment Analytics
+                    </h2>
+                    <p class="text-muted mb-0">Comprehensive recruitment insights and reports</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="exportReport()">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Period Filter -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="filter-tabs d-flex">
+                <button class="filter-tab active" data-period="7">Last 7 Days</button>
+                <button class="filter-tab" data-period="30">Last 30 Days</button>
+                <button class="filter-tab" data-period="90">Last 3 Months</button>
+                <button class="filter-tab" data-period="365">Last Year</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-value">{{ total_applications or 0 }}</div>
+                <div class="metric-label">Total Applications</div>
+                <div class="metric-change">
+                    <i class="fas fa-arrow-up"></i> +12% from last month
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="metric-value">{{ interviews_scheduled or 0 }}</div>
+                <div class="metric-label">Interviews Scheduled</div>
+                <div class="metric-change">
+                    <i class="fas fa-arrow-up"></i> +8% from last month
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="metric-value">{{ offers_extended or 0 }}</div>
+                <div class="metric-label">Offers Extended</div>
+                <div class="metric-change">
+                    <i class="fas fa-arrow-up"></i> +25% from last month
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="metric-value">{{ hires_made or 0 }}</div>
+                <div class="metric-label">Hires Made</div>
+                <div class="metric-change">
+                    <i class="fas fa-arrow-up"></i> +15% from last month
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="chart-container">
+                <h5 class="section-title">
+                    <i class="fas fa-chart-line"></i>
+                    Applications Over Time
+                </h5>
+                <div class="chart-placeholder">
+                    <i class="fas fa-chart-line fa-3x mb-2"></i>
+                    <h6>Applications Trend Chart</h6>
+                    <p class="mb-0">Chart showing application volume over time</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="chart-container">
+                <h5 class="section-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Application Status Distribution
+                </h5>
+                <div class="chart-placeholder">
+                    <i class="fas fa-chart-pie fa-3x mb-2"></i>
+                    <h6>Status Distribution</h6>
+                    <p class="mb-0">Pie chart of application statuses</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Analysis -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="report-section">
+                <h5 class="section-title">
+                    <i class="fas fa-funnel-dollar"></i>
+                    Recruitment Pipeline
+                </h5>
+                
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span class="fw-semibold">Job Applications</span>
+                        <span class="text-muted">{{ total_applications or 0 }} candidates</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-primary" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span class="fw-semibold">Under Review</span>
+                        <span class="text-muted">{{ applications_under_review or 0 }} candidates</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: {{ (applications_under_review / total_applications * 100) if total_applications > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span class="fw-semibold">Interviews Scheduled</span>
+                        <span class="text-muted">{{ interviews_scheduled or 0 }} candidates</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: {{ (interviews_scheduled / total_applications * 100) if total_applications > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span class="fw-semibold">Offers Extended</span>
+                        <span class="text-muted">{{ offers_extended or 0 }} candidates</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: {{ (offers_extended / total_applications * 100) if total_applications > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span class="fw-semibold">Hired</span>
+                        <span class="text-muted">{{ hires_made or 0 }} candidates</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-dark" style="width: {{ (hires_made / total_applications * 100) if total_applications > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="report-section">
+                <h5 class="section-title">
+                    <i class="fas fa-clock"></i>
+                    Hiring Metrics
+                </h5>
+                
+                <div class="row text-center">
+                    <div class="col-6 border-end">
+                        <h4 class="text-primary mb-1">{{ average_time_to_hire or 0 }}</h4>
+                        <small class="text-muted">Days to Hire</small>
+                        <p class="text-muted small mt-2">Average time from application to offer</p>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success mb-1">{{ conversion_rate or 0 }}%</h4>
+                        <small class="text-muted">Conversion Rate</small>
+                        <p class="text-muted small mt-2">Applications to hire ratio</p>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="row text-center">
+                    <div class="col-6 border-end">
+                        <h4 class="text-warning mb-1">{{ interview_success_rate or 0 }}%</h4>
+                        <small class="text-muted">Interview Success</small>
+                        <p class="text-muted small mt-2">Interviews leading to offers</p>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info mb-1">{{ offer_acceptance_rate or 0 }}%</h4>
+                        <small class="text-muted">Offer Acceptance</small>
+                        <p class="text-muted small mt-2">Offers accepted by candidates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performing Positions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="report-section">
+                <h5 class="section-title">
+                    <i class="fas fa-trophy"></i>
+                    Top Performing Job Positions
+                </h5>
+                
+                <div class="table-responsive">
+                    <table class="table table-modern">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Department</th>
+                                <th>Applications</th>
+                                <th>Interviews</th>
+                                <th>Offers</th>
+                                <th>Hires</th>
+                                <th>Success Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if top_positions %}
+                                {% for position in top_positions %}
+                                <tr>
+                                    <td>
+                                        <span class="fw-semibold">{{ position.position_title }}</span>
+                                    </td>
+                                    <td>{{ position.department_name or 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ position.application_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ position.interview_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ position.offer_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ position.hire_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="status-dot bg-{{ 'success' if (position.hire_count or 0) > 0 else 'warning' if (position.offer_count or 0) > 0 else 'secondary' }}"></span>
+                                            {{ "%.1f"|format((position.hire_count or 0) / (position.application_count or 1) * 100) }}%
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-chart-bar fa-2x mb-2 d-block"></i>
+                                        No data available yet. Start posting jobs and tracking applications!
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="report-section">
+                <h5 class="section-title">
+                    <i class="fas fa-activity"></i>
+                    Recent Recruitment Activity
+                </h5>
+                
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                    <div class="d-flex align-items-center border-bottom py-3">
+                        <div class="me-3">
+                            <i class="fas fa-{{ activity.icon }} text-{{ activity.color }} fa-lg"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">{{ activity.title }}</div>
+                            <small class="text-muted">{{ activity.description }}</small>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">
+                                {% if activity.timestamp %}
+                                    {% if activity.timestamp.__class__.__name__ == 'datetime' %}
+                                        {{ activity.timestamp.strftime('%d %b, %I:%M %p') }}
+                                    {% else %}
+                                        {{ activity.timestamp }}
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No recent activity</h6>
+                        <p class="text-muted">Activity will appear here as you use the recruitment system</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Time period filter
+    $('.filter-tab').click(function() {
+        $('.filter-tab').removeClass('active');
+        $(this).addClass('active');
+        
+        const period = $(this).data('period');
+        loadDataForPeriod(period);
+    });
+});
+
+function loadDataForPeriod(days) {
+    // This would make an AJAX call to reload data for the selected period
+    console.log('Loading data for last', days, 'days');
+    
+    // Show loading state
+    $('.metric-value').html('<i class="fas fa-spinner fa-spin"></i>');
+    
+    // Simulate data loading
+    setTimeout(function() {
+        $('.metric-value').each(function(index) {
+            const randomValue = Math.floor(Math.random() * 100) + 10;
+            $(this).text(randomValue);
+        });
+    }, 1000);
+}
+
+function exportReport() {
+    alert('Export functionality will be available soon!');
+}
+
+function refreshData() {
+    // Show refresh animation
+    const refreshIcon = $('.fa-sync-alt');
+    refreshIcon.addClass('fa-spin');
+    
+    // Simulate data refresh
+    setTimeout(function() {
+        refreshIcon.removeClass('fa-spin');
+        
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                Data refreshed successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('body').append(alertHtml);
+        setTimeout(() => $('.alert').fadeOut(), 3000);
+    }, 2000);
+}
+</script>
+{% endblock %}

@@ -46,6 +46,41 @@
             z-index: 1000;
         }
 
+        .sidebar.collapsed {
+            width: 60px;
+            padding: 1.5rem 0.5rem;
+        }
+
+        .sidebar.collapsed .sidebar-brand {
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .sidebar.collapsed .sidebar-brand .brand-text {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-brand .brand-icon {
+            display: inline-block;
+        }
+
+        .sidebar.collapsed .nav-link .nav-text {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-link {
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+        }
+
+        .sidebar.collapsed .nav-link i {
+            margin-right: 0;
+        }
+
+        .sidebar.collapsed .nav-section-title {
+            display: none;
+        }
+
         .sidebar-brand {
             font-weight: 700;
             font-size: 1.5rem;
@@ -116,6 +151,32 @@
             margin-left: 260px;
             padding: 0;
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 60px;
+        }
+
+        /* Sidebar Toggle Button */
+        #sidebarToggle {
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #6c757d;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sidebarToggle:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+            color: #495057;
+            transform: scale(1.02);
         }
 
         /* Header */
@@ -276,10 +337,13 @@
 </head>
 <body>
 
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <a href="/" class="sidebar-brand d-flex align-items-center">
-            <i class="fas fa-gem me-2"></i>
-            <span>Lumorange</span>
+            <i class="fas fa-gem me-2 brand-icon" style="display: none;"></i>
+            <span class="brand-text">
+                <i class="fas fa-gem me-2"></i>
+                Lumorange
+            </span>
         </a>
         
         <!-- Core Business -->
@@ -288,22 +352,22 @@
             <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link" href="/" data-bs-toggle="tooltip" title="Overview and key metrics">
-                        <i class="fas fa-tachometer-alt"></i>Dashboard
+                        <i class="fas fa-tachometer-alt"></i><span class="nav-text">Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/clients" data-bs-toggle="tooltip" title="Manage client information and relationships">
-                        <i class="fas fa-handshake"></i>Clients
+                        <i class="fas fa-handshake"></i><span class="nav-text">Clients</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/projects" data-bs-toggle="tooltip" title="Track projects and deliverables">
-                        <i class="fas fa-project-diagram"></i>Projects
+                        <i class="fas fa-project-diagram"></i><span class="nav-text">Projects</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/invoices" data-bs-toggle="tooltip" title="Create and manage invoices">
-                        <i class="fas fa-file-invoice-dollar"></i>Invoices
+                        <i class="fas fa-file-invoice-dollar"></i><span class="nav-text">Invoices</span>
                     </a>
                 </li>
             </ul>
@@ -315,22 +379,65 @@
             <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link" href="/employees" data-bs-toggle="tooltip" title="Employee information and profiles">
-                        <i class="fas fa-users"></i>Employees
+                        <i class="fas fa-users"></i><span class="nav-text">Employees</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/departments" data-bs-toggle="tooltip" title="Organizational structure">
-                        <i class="fas fa-building"></i>Departments
+                        <i class="fas fa-building"></i><span class="nav-text">Departments</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/salaries" data-bs-toggle="tooltip" title="Salary management and structures">
-                        <i class="fas fa-rupee-sign"></i>Salaries
+                        <i class="fas fa-rupee-sign"></i><span class="nav-text">Salaries</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/payroll" data-bs-toggle="tooltip" title="Process payroll runs and payments">
                         <i class="fas fa-calculator"></i>Payroll
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Recruitment & Interview Management -->
+        <div class="nav-section">
+            <div class="nav-section-title">Recruitment</div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/recruitment" data-bs-toggle="tooltip" title="Recruitment dashboard and analytics">
+                        <i class="fas fa-chart-pie"></i><span class="nav-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/candidates" data-bs-toggle="tooltip" title="Manage candidate profiles and applications">
+                        <i class="fas fa-user-friends"></i><span class="nav-text">Candidates</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/applications" data-bs-toggle="tooltip" title="Track job applications and status">
+                        <i class="fas fa-file-alt"></i><span class="nav-text">Applications</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/job_positions" data-bs-toggle="tooltip" title="Job positions and openings">
+                        <i class="fas fa-briefcase"></i><span class="nav-text">Job Positions</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/interviews" data-bs-toggle="tooltip" title="Schedule and manage interviews">
+                        <i class="fas fa-calendar-check"></i><span class="nav-text">Interviews</span>
+                        <i class="fas fa-calendar-check"></i>Interviews
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/offers" data-bs-toggle="tooltip" title="Manage job offers and contracts">
+                        <i class="fas fa-handshake"></i>Offers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/recruitment_reports" data-bs-toggle="tooltip" title="Analytics and recruitment reports">
+                        <i class="fas fa-chart-bar"></i>Reports
                     </a>
                 </li>
             </ul>
@@ -358,19 +465,24 @@
         <!-- Header with breadcrumbs -->
         <div class="main-header">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb">
-                            <li class="breadcrumb-item">
-                                <a href="/" class="text-decoration-none">
-                                    <i class="fas fa-home me-1"></i>Home
-                                </a>
-                            </li>
-                            {% block breadcrumb %}{% endblock %}
-                        </ol>
-                    </nav>
-                    <h1 class="h4 mb-0 text-dark">{% block page_title %}Dashboard{% endblock %}</h1>
-                    {% block page_subtitle %}{% endblock %}
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-outline-secondary me-3" id="sidebarToggle" title="Toggle Sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a href="/" class="text-decoration-none">
+                                        <i class="fas fa-home me-1"></i>Home
+                                    </a>
+                                </li>
+                                {% block breadcrumb %}{% endblock %}
+                            </ol>
+                        </nav>
+                        <h1 class="h4 mb-0 text-dark">{% block page_title %}Dashboard{% endblock %}</h1>
+                        {% block page_subtitle %}{% endblock %}
+                    </div>
                 </div>
                 <div class="d-flex align-items-center">
                     <div class="me-3">
@@ -418,6 +530,8 @@
         </div>
     </main>
 
+    <!-- Bootstrap and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -562,6 +676,52 @@
                 day: 'numeric'
             });
         };
+
+        // Sidebar Toggle Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            // Load saved sidebar state from localStorage
+            const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            }
+            
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+                
+                // Save state to localStorage
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+                
+                // Update tooltip
+                sidebarToggle.setAttribute('title', isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar');
+                
+                // Re-initialize tooltips for sidebar items when collapsed
+                if (isCollapsed) {
+                    // Add tooltips to nav items when collapsed
+                    setTimeout(() => {
+                        const navLinks = sidebar.querySelectorAll('.nav-link');
+                        navLinks.forEach(link => {
+                            const text = link.textContent.trim();
+                            link.setAttribute('data-bs-toggle', 'tooltip');
+                            link.setAttribute('data-bs-placement', 'right');
+                            link.setAttribute('title', text);
+                        });
+                        
+                        // Initialize Bootstrap tooltips
+                        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                        tooltipTriggerList.map(function (tooltipTriggerEl) {
+                            return new bootstrap.Tooltip(tooltipTriggerEl);
+                        });
+                    }, 300);
+                }
+            });
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

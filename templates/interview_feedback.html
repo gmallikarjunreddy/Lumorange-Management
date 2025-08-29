@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Feedback - {{ interview.first_name }} {{ interview.last_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('recruitment_dashboard') }}">
+                <i class="fas fa-users me-2"></i>Recruitment
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('interviews') }}">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Interviews
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h1 class="h3 mb-1">Interview Feedback</h1>
+                                <div class="text-muted">
+                                    <strong>{{ interview.first_name }} {{ interview.last_name }}</strong>
+                                    - {{ interview.position_title }}
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-primary fs-6 px-3 py-2">
+                                    {{ interview.interview_type }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interview Details -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-calendar me-2"></i>Interview Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Date:</strong>
+                            {% if interview.scheduled_date %}
+                                {% if interview.scheduled_date.__class__.__name__ == 'datetime' %}
+                                    {{ interview.scheduled_date.strftime('%B %d, %Y') }}
+                                {% else %}
+                                    {{ interview.scheduled_date }}
+                                {% endif %}
+                            {% else %}
+                                Not scheduled
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Time:</strong>
+                            {% if interview.scheduled_time %}
+                                {% if interview.scheduled_time.__class__.__name__ == 'time' %}
+                                    {{ interview.scheduled_time.strftime('%I:%M %p') }}
+                                {% else %}
+                                    {{ interview.scheduled_time }}
+                                {% endif %}
+                            {% else %}
+                                Not scheduled
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Duration:</strong> {{ interview.duration_minutes or 'Not specified' }} minutes
+                        </div>
+                        <div class="mb-0">
+                            <strong>Status:</strong>
+                            <span class="badge 
+                                {% if interview.status == 'Scheduled' %}bg-warning
+                                {% elif interview.status == 'Completed' %}bg-success
+                                {% elif interview.status == 'Cancelled' %}bg-danger
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {{ interview.status }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-star me-2"></i>Interview Score</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if interview.overall_score %}
+                            <div class="mb-3">
+                                <div class="display-4 fw-bold text-primary">{{ interview.overall_score }}/10</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: {{ (interview.overall_score / 10) * 100 }}%"></div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-muted">
+                                <i class="fas fa-clock fa-3x mb-3"></i>
+                                <p>Score not yet provided</p>
+                            </div>
+                        {% endif %}
+
+                        {% if interview.recommendation %}
+                            <div class="mt-3">
+                                <strong>Recommendation:</strong>
+                                <span class="badge 
+                                    {% if interview.recommendation == 'Hire' %}bg-success
+                                    {% elif interview.recommendation == 'Maybe' %}bg-warning
+                                    {% elif interview.recommendation == 'No Hire' %}bg-danger
+                                    {% else %}bg-secondary
+                                    {% endif %} fs-6 px-3 py-2">
+                                    {{ interview.recommendation }}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interview Notes -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Interview Notes</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if interview.interviewer_notes %}
+                            <div class="bg-light p-3 rounded">
+                                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ interview.interviewer_notes }}</pre>
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-4">
+                                <i class="fas fa-file-alt fa-3x mb-3"></i>
+                                <p class="mb-0">No notes available for this interview</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <a href="{{ url_for('video_interview', interview_id=interview.id) }}" class="btn btn-primary me-2">
+                    <i class="fas fa-video me-2"></i>Join Interview
+                </a>
+                <a href="{{ url_for('interviews') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Interviews
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

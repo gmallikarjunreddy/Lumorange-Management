@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Schedule Interview' if not interview else 'Edit Interview' }} - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .form-body {
+        padding: 2rem;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .section-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .candidate-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .candidate-card:hover, .candidate-card.selected {
+        border-color: #667eea;
+        background: #f8f9ff;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    }
+    
+    .candidate-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .time-slot {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        min-width: 100px;
+    }
+    
+    .time-slot:hover, .time-slot.selected {
+        border-color: #667eea;
+        background: #f8f9ff;
+        color: #667eea;
+        font-weight: 600;
+    }
+    
+    .interviewer-badge {
+        background: #e9ecef;
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    
+    .interviewer-badge .remove-btn {
+        margin-left: 0.5rem;
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+    
+    .requirement-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .requirement-item {
+        padding: 0.75rem;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        background: white;
+    }
+    
+    .duration-selector {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .duration-option {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    
+    .duration-option:hover, .duration-option.selected {
+        border-color: #667eea;
+        background: #f8f9ff;
+        color: #667eea;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-12">
+            <div class="form-container">
+                <!-- Header -->
+                <div class="form-header">
+                    <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                    <h2 class="mb-0">{{ 'Schedule New Interview' if not interview else 'Edit Interview' }}</h2>
+                    <p class="mb-0 opacity-75">Set up an interview with a candidate</p>
+                </div>
+
+                <!-- Form Body -->
+                <div class="form-body">
+                    <form method="POST" enctype="multipart/form-data" id="interviewForm">
+                        
+                        <!-- Candidate Selection -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-user-check me-2"></i>
+                                Select Candidate & Position
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Job Application</label>
+                                    <select class="form-select" name="application_id" id="applicationSelect" required onchange="loadCandidateDetails()">
+                                        <option value="">Select Job Application</option>
+                                        {% for app in applications %}
+                                        <option value="{{ app.id }}" 
+                                                data-candidate="{{ app.candidate_name }}"
+                                                data-email="{{ app.candidate_email }}"
+                                                data-position="{{ app.position_title }}"
+                                                data-department="{{ app.department_name }}"
+                                                {{ 'selected' if interview and interview.application_id == app.id }}>
+                                            {{ app.candidate_name }} - {{ app.position_title }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Interview Round</label>
+                                    <select class="form-select" name="interview_round" required>
+                                        <option value="">Select Round</option>
+                                        <option value="1" {{ 'selected' if interview and interview.interview_round == 1 }}>Round 1 - Initial Screening</option>
+                                        <option value="2" {{ 'selected' if interview and interview.interview_round == 2 }}>Round 2 - Technical Interview</option>
+                                        <option value="3" {{ 'selected' if interview and interview.interview_round == 3 }}>Round 3 - Manager Interview</option>
+                                        <option value="4" {{ 'selected' if interview and interview.interview_round == 4 }}>Round 4 - HR Interview</option>
+                                        <option value="5" {{ 'selected' if interview and interview.interview_round == 5 }}>Round 5 - Final Interview</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Selected Candidate Info -->
+                            <div id="candidateInfo" class="mt-3" style="display: none;">
+                                <div class="alert alert-info d-flex align-items-center">
+                                    <div class="candidate-avatar me-3" id="candidateAvatar">C</div>
+                                    <div>
+                                        <h6 class="mb-0" id="candidateName">Candidate Name</h6>
+                                        <small id="candidateDetails">Position - Department</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Interview Type & Mode -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-cogs me-2"></i>
+                                Interview Configuration
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Interview Type</label>
+                                    <select class="form-select" name="interview_type_id" required>
+                                        <option value="">Select Interview Type</option>
+                                        {% for type in interview_types %}
+                                        <option value="{{ type.id }}" {{ 'selected' if interview and interview.interview_type_id == type.id }}>
+                                            {{ type.type_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Interview Mode</label>
+                                    <select class="form-select" name="interview_mode" required onchange="toggleModeFields()">
+                                        <option value="">Select Mode</option>
+                                        <option value="In-person" {{ 'selected' if interview and interview.interview_mode == 'In-person' }}>
+                                            <i class="fas fa-building"></i> In-person
+                                        </option>
+                                        <option value="Video Call" {{ 'selected' if interview and interview.interview_mode == 'Video Call' }}>
+                                            <i class="fas fa-video"></i> Video Call
+                                        </option>
+                                        <option value="Phone Call" {{ 'selected' if interview and interview.interview_mode == 'Phone Call' }}>
+                                            <i class="fas fa-phone"></i> Phone Call
+                                        </option>
+                                        <option value="Online Assessment" {{ 'selected' if interview and interview.interview_mode == 'Online Assessment' }}>
+                                            <i class="fas fa-laptop"></i> Online Assessment
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Mode-specific fields -->
+                            <div class="row mt-3">
+                                <div class="col-md-6" id="meetingRoomField" style="display: none;">
+                                    <label class="form-label fw-semibold">Meeting Room</label>
+                                    <input type="text" class="form-control" name="meeting_room" 
+                                           value="{{ interview.meeting_room if interview else '' }}"
+                                           placeholder="Conference Room A, Floor 2">
+                                </div>
+                                <div class="col-md-6" id="meetingLinkField" style="display: none;">
+                                    <label class="form-label fw-semibold">Meeting Link</label>
+                                    <input type="url" class="form-control" name="meeting_link" 
+                                           value="{{ interview.meeting_link if interview else '' }}"
+                                           placeholder="https://meet.google.com/xxx-xxxx-xxx">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date & Time Selection -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-clock me-2"></i>
+                                Schedule Details
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Interview Date</label>
+                                    <input type="date" class="form-control" name="scheduled_date" 
+                                           value="{% if interview and interview.scheduled_date %}{% if interview.scheduled_date.__class__.__name__ == 'datetime' %}{{ interview.scheduled_date.strftime('%Y-%m-%d') }}{% else %}{{ interview.scheduled_date }}{% endif %}{% endif %}"
+                                           min="{{ today().strftime('%Y-%m-%d') }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Start Time</label>
+                                    <input type="time" class="form-control" name="scheduled_time" 
+                                           value="{% if interview and interview.scheduled_time %}{% if interview.scheduled_time.__class__.__name__ == 'time' %}{{ interview.scheduled_time.strftime('%H:%M') }}{% else %}{{ interview.scheduled_time }}{% endif %}{% endif %}"
+                                           required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Duration</label>
+                                    <div class="duration-selector">
+                                        <div class="duration-option" data-minutes="30">30 min</div>
+                                        <div class="duration-option selected" data-minutes="60">1 hour</div>
+                                        <div class="duration-option" data-minutes="90">1.5 hours</div>
+                                        <div class="duration-option" data-minutes="120">2 hours</div>
+                                    </div>
+                                    <input type="hidden" name="duration_minutes" value="{{ interview.duration_minutes if interview else '60' }}">
+                                </div>
+                            </div>
+
+                            <!-- Quick Time Slots -->
+                            <div class="mt-3">
+                                <label class="form-label fw-semibold">Quick Time Slots</label>
+                                <div class="d-flex flex-wrap">
+                                    <div class="time-slot" data-time="09:00">9:00 AM</div>
+                                    <div class="time-slot" data-time="10:00">10:00 AM</div>
+                                    <div class="time-slot" data-time="11:00">11:00 AM</div>
+                                    <div class="time-slot" data-time="12:00">12:00 PM</div>
+                                    <div class="time-slot" data-time="14:00">2:00 PM</div>
+                                    <div class="time-slot" data-time="15:00">3:00 PM</div>
+                                    <div class="time-slot" data-time="16:00">4:00 PM</div>
+                                    <div class="time-slot" data-time="17:00">5:00 PM</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Interview Notes & Requirements -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-sticky-note me-2"></i>
+                                Interview Preparation
+                            </h5>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Interview Notes / Instructions</label>
+                                <textarea class="form-control" name="interviewer_notes" rows="4" 
+                                          placeholder="Special instructions, topics to focus on, candidate background notes...">{{ interview.interviewer_notes if interview else '' }}</textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Assessment Criteria</label>
+                                <div class="requirement-list">
+                                    <div class="requirement-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="tech_skills" checked>
+                                            <label class="form-check-label fw-semibold" for="tech_skills">
+                                                Technical Skills Assessment
+                                            </label>
+                                            <small class="d-block text-muted">Evaluate technical competency and problem-solving abilities</small>
+                                        </div>
+                                    </div>
+                                    <div class="requirement-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="communication" checked>
+                                            <label class="form-check-label fw-semibold" for="communication">
+                                                Communication Skills
+                                            </label>
+                                            <small class="d-block text-muted">Assess verbal and written communication abilities</small>
+                                        </div>
+                                    </div>
+                                    <div class="requirement-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="cultural_fit" checked>
+                                            <label class="form-check-label fw-semibold" for="cultural_fit">
+                                                Cultural Fit
+                                            </label>
+                                            <small class="d-block text-muted">Evaluate alignment with company values and culture</small>
+                                        </div>
+                                    </div>
+                                    <div class="requirement-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="experience">
+                                            <label class="form-check-label fw-semibold" for="experience">
+                                                Experience Review
+                                            </label>
+                                            <small class="d-block text-muted">Deep dive into past experience and achievements</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notification Settings -->
+                        <div class="form-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-bell me-2"></i>
+                                Notification Settings
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="notify_candidate" checked>
+                                        <label class="form-check-label fw-semibold" for="notify_candidate">
+                                            Send notification to candidate
+                                        </label>
+                                        <small class="d-block text-muted">Candidate will receive interview confirmation email</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="add_calendar" checked>
+                                        <label class="form-check-label fw-semibold" for="add_calendar">
+                                            Add to calendar
+                                        </label>
+                                        <small class="d-block text-muted">Create calendar event for interviewers</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="reminder_1day">
+                                        <label class="form-check-label fw-semibold" for="reminder_1day">
+                                            1-day reminder
+                                        </label>
+                                        <small class="d-block text-muted">Send reminder 1 day before interview</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="reminder_1hour">
+                                        <label class="form-check-label fw-semibold" for="reminder_1hour">
+                                            1-hour reminder
+                                        </label>
+                                        <small class="d-block text-muted">Send reminder 1 hour before interview</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="{{ url_for('interviews') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Back to Interviews
+                            </a>
+                            
+                            <div class="d-flex gap-2">
+                                {% if interview %}
+                                <button type="button" class="btn btn-outline-danger btn-lg" onclick="deleteInterview()">
+                                    <i class="fas fa-trash me-2"></i>
+                                    Delete Interview
+                                </button>
+                                {% endif %}
+                                
+                                <button type="submit" class="btn btn-primary btn-lg" name="action" value="schedule">
+                                    <i class="fas fa-calendar-check me-2"></i>
+                                    {{ 'Update Interview' if interview else 'Schedule Interview' }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-hide alerts
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+
+    // Initialize form
+    toggleModeFields();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    $('input[name="scheduled_date"]').attr('min', today);
+    
+    // Duration selector
+    $('.duration-option').click(function() {
+        $('.duration-option').removeClass('selected');
+        $(this).addClass('selected');
+        $('input[name="duration_minutes"]').val($(this).data('minutes'));
+    });
+    
+    // Quick time slots
+    $('.time-slot').click(function() {
+        $('.time-slot').removeClass('selected');
+        $(this).addClass('selected');
+        $('input[name="scheduled_time"]').val($(this).data('time'));
+    });
+    
+    // Form validation
+    $('#interviewForm').on('submit', function(e) {
+        const selectedDate = new Date($('input[name="scheduled_date"]').val());
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+            e.preventDefault();
+            alert('Interview date cannot be in the past.');
+            return false;
+        }
+        
+        // Check for time conflicts (would be implemented with AJAX call)
+        return true;
+    });
+});
+
+function loadCandidateDetails() {
+    const select = document.getElementById('applicationSelect');
+    const option = select.selectedOptions[0];
+    
+    if (option.value) {
+        const candidateName = option.dataset.candidate;
+        const email = option.dataset.email;
+        const position = option.dataset.position;
+        const department = option.dataset.department;
+        
+        document.getElementById('candidateName').textContent = candidateName;
+        document.getElementById('candidateDetails').textContent = `${email} • ${position} - ${department}`;
+        document.getElementById('candidateAvatar').textContent = candidateName.charAt(0);
+        document.getElementById('candidateInfo').style.display = 'block';
+    } else {
+        document.getElementById('candidateInfo').style.display = 'none';
+    }
+}
+
+function toggleModeFields() {
+    const mode = document.querySelector('select[name="interview_mode"]').value;
+    const roomField = document.getElementById('meetingRoomField');
+    const linkField = document.getElementById('meetingLinkField');
+    
+    // Hide all fields first
+    roomField.style.display = 'none';
+    linkField.style.display = 'none';
+    
+    // Show relevant field based on mode
+    if (mode === 'In-person') {
+        roomField.style.display = 'block';
+    } else if (mode === 'Video Call') {
+        linkField.style.display = 'block';
+    }
+}
+
+function deleteInterview() {
+    if (confirm('Are you sure you want to delete this interview? This action cannot be undone.')) {
+        // Create a form to delete the interview
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.href;
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'delete';
+        form.appendChild(actionInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCandidateDetails();
+});
+</script>
+{% endblock %}

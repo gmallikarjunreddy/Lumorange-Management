@@ -236,14 +236,40 @@
                                     </div>
                                     <div>
                                         <div class="fw-semibold">{{ expense.employee_name or 'Unknown' }}</div>
-                                        <small class="text-muted">{{ expense.expense_date.strftime('%d %b %Y') if expense.expense_date else '' }}</small>
+                                        <small class="text-muted">
+                                            {% if expense.expense_date %}
+                                                {% if expense.expense_date.__class__.__name__ == 'datetime' %}
+                                                    {{ expense.expense_date.strftime('%d %b %Y') }}
+                                                {% else %}
+                                                    {{ expense.expense_date }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </small>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 <div>
-                                    <div class="fw-semibold">{{ expense.expense_date.strftime('%d %b %Y') if expense.expense_date else 'N/A' }}</div>
-                                    <small class="text-muted">{{ expense.expense_date.strftime('%A') if expense.expense_date else '' }}</small>
+                                    <div class="fw-semibold">
+                                        {% if expense.expense_date %}
+                                            {% if expense.expense_date.__class__.__name__ == 'datetime' %}
+                                                {{ expense.expense_date.strftime('%d %b %Y') }}
+                                            {% else %}
+                                                {{ expense.expense_date }}
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if expense.expense_date %}
+                                            {% if expense.expense_date.__class__.__name__ == 'datetime' %}
+                                                {{ expense.expense_date.strftime('%A') }}
+                                            {% else %}
+                                                {{ expense.expense_date }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </small>
                                 </div>
                             </td>
                             <td>
@@ -330,12 +356,32 @@
                                                 <tr><td><strong>Status:</strong></td><td>{{ expense.status.title() if expense.status else 'Submitted' }}</td></tr>
                                                 {% if expense.approved_by_name %}
                                                 <tr><td><strong>Approved By:</strong></td><td>{{ expense.approved_by_name }}</td></tr>
-                                                <tr><td><strong>Approval Date:</strong></td><td>{{ expense.approved_date.strftime('%d %b %Y, %I:%M %p') if expense.approved_date else 'N/A' }}</td></tr>
+                                                <tr><td><strong>Approval Date:</strong></td><td>
+                                                    {% if expense.approved_date %}
+                                                        {% if expense.approved_date.__class__.__name__ == 'datetime' %}
+                                                            {{ expense.approved_date.strftime('%d %b %Y, %I:%M %p') }}
+                                                        {% else %}
+                                                            {{ expense.approved_date }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td></tr>
                                                 {% endif %}
                                                 {% if expense.rejection_reason %}
                                                 <tr><td><strong>Rejection Reason:</strong></td><td>{{ expense.rejection_reason }}</td></tr>
                                                 {% endif %}
-                                                <tr><td><strong>Created:</strong></td><td>{{ expense.created_date.strftime('%d %b %Y, %I:%M %p') if expense.created_date else 'N/A' }}</td></tr>
+                                                <tr><td><strong>Created:</strong></td><td>
+                                                    {% if expense.created_date %}
+                                                        {% if expense.created_date.__class__.__name__ == 'datetime' %}
+                                                            {{ expense.created_date.strftime('%d %b %Y, %I:%M %p') }}
+                                                        {% else %}
+                                                            {{ expense.created_date }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td></tr>
                                             </table>
                                         </div>
                                     </div>

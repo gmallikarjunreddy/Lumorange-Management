@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Recruitment Dashboard - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        transition: transform 0.2s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-radius: 12px;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.9;
+    }
+    .pipeline-stage {
+        padding: 15px;
+        margin: 8px 5px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .pipeline-stage:hover {
+        transform: scale(1.05);
+    }
+    .recent-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .candidate-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-users-cog text-primary"></i> 
+                        Recruitment Dashboard
+                    </h2>
+                    <p class="text-muted mb-0">Complete Interview & Candidate Management System</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('add_candidate') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add Candidate
+                    </a>
+                    <a href="{{ url_for('add_job_position') }}" class="btn btn-success">
+                        <i class="fas fa-briefcase"></i> Add Position
+                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download"></i> Reports
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-chart-bar"></i> Analytics Report</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-users"></i> Candidate Report</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-calendar"></i> Interview Report</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                                <i class="fas fa-briefcase stat-icon text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1 fw-bold">{{ analytics.total_positions or 0 }}</h3>
+                            <p class="text-muted mb-1">Total Positions</p>
+                            <small class="text-success">
+                                <i class="fas fa-arrow-up"></i>
+                                {{ analytics.open_positions or 0 }} Currently Open
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                                <i class="fas fa-file-alt stat-icon text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1 fw-bold">{{ analytics.total_applications or 0 }}</h3>
+                            <p class="text-muted mb-1">Applications</p>
+                            <small class="text-info">
+                                <i class="fas fa-clock"></i>
+                                {{ analytics.active_applications or 0 }} Active
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                                <i class="fas fa-calendar-alt stat-icon text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1 fw-bold">{{ analytics.total_interviews or 0 }}</h3>
+                            <p class="text-muted mb-1">Interviews</p>
+                            <small class="text-warning">
+                                <i class="fas fa-calendar-check"></i>
+                                {{ analytics.scheduled_interviews or 0 }} Scheduled
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                                <i class="fas fa-handshake stat-icon text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1 fw-bold">{{ analytics.total_offers or 0 }}</h3>
+                            <p class="text-muted mb-1">Job Offers</p>
+                            <small class="text-success">
+                                <i class="fas fa-clock"></i>
+                                {{ analytics.pending_offers or 0 }} Pending
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recruitment Pipeline -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card dashboard-card">
+                <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-funnel-dollar"></i> Recruitment Pipeline
+                    </h5>
+                    <span class="badge bg-light text-dark">Live View</span>
+                </div>
+                <div class="card-body">
+                    {% if pipeline_stats %}
+                    <div class="row">
+                        {% for stage in pipeline_stats %}
+                        <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                            <div class="pipeline-stage">
+                                <h4 class="mb-1">{{ stage.count }}</h4>
+                                <small class="fw-medium">{{ stage.status }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-chart-line fa-3x mb-3 opacity-25"></i>
+                        <p>No pipeline data available yet.</p>
+                        <a href="{{ url_for('add_candidate') }}" class="btn btn-primary btn-sm">Start Adding Candidates</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- Recent Applications -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-header bg-gradient-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt"></i> Recent Applications
+                    </h5>
+                    <a href="{{ url_for('candidates') }}" class="text-white text-decoration-none">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_applications %}
+                    <div class="recent-list">
+                        {% for app in recent_applications %}
+                        <div class="d-flex align-items-center p-3 border-bottom">
+                            <div class="candidate-avatar me-3">
+                                {{ app.first_name[0] }}{{ app.last_name[0] }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-semibold">{{ app.first_name }} {{ app.last_name }}</h6>
+                                <small class="text-muted d-block">{{ app.email }}</small>
+                                <small class="text-primary">{{ app.position_title }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge status-badge bg-{% if app.status == 'Selected' %}success{% elif app.status == 'Interview Scheduled' %}warning{% elif app.status == 'Rejected' %}danger{% else %}primary{% endif %}">
+                                    {{ app.status }}
+                                </span>
+                                <small class="text-muted d-block mt-1">
+                                    {% if app.application_date %}
+                                        {% if app.application_date.__class__.__name__ == 'date' %}
+                                            {{ app.application_date.strftime('%d %b') }}
+                                        {% else %}
+                                            {{ app.application_date }}
+                                        {% endif %}
+                                    {% else %}
+                                        No Date
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                        <p>No recent applications</p>
+                        <a href="{{ url_for('add_candidate') }}" class="btn btn-outline-primary btn-sm">Add First Candidate</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Interviews -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-header bg-gradient-warning text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check"></i> Upcoming Interviews
+                    </h5>
+                    <a href="{{ url_for('interviews') }}" class="text-white text-decoration-none">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if upcoming_interviews %}
+                    <div class="recent-list">
+                        {% for interview in upcoming_interviews %}
+                        <div class="d-flex align-items-center p-3 border-bottom">
+                            <div class="candidate-avatar me-3">
+                                {{ interview.first_name[0] }}{{ interview.last_name[0] }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-semibold">{{ interview.first_name }} {{ interview.last_name }}</h6>
+                                <small class="text-muted d-block">{{ interview.type_name }}</small>
+                                <small class="text-secondary">{{ interview.position_title }}</small>
+                            </div>
+                            <div class="text-end">
+                                <strong class="text-primary">
+                                    {% if interview.scheduled_date %}
+                                        {% if interview.scheduled_date.__class__.__name__ == 'date' %}
+                                            {{ interview.scheduled_date.strftime('%d %b') }}
+                                        {% else %}
+                                            {{ interview.scheduled_date }}
+                                        {% endif %}
+                                    {% else %}
+                                        TBD
+                                    {% endif %}
+                                </strong>
+                                <small class="text-muted d-block">
+                                    {% if interview.scheduled_time %}
+                                        {% if interview.scheduled_time.__class__.__name__ == 'time' %}
+                                            {{ interview.scheduled_time.strftime('%I:%M %p') }}
+                                        {% else %}
+                                            {{ interview.scheduled_time }}
+                                        {% endif %}
+                                    {% else %}
+                                        TBD
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-calendar-plus fa-3x mb-3 opacity-25"></i>
+                        <p>No upcoming interviews</p>
+                        <a href="{{ url_for('interviews') }}" class="btn btn-outline-warning btn-sm">Schedule Interview</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card dashboard-card">
+                <div class="card-header bg-gradient-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('add_candidate') }}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center">
+                                <i class="fas fa-user-plus fa-2x mb-2"></i>
+                                <span>Add New Candidate</span>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('add_job_position') }}" class="btn btn-outline-success w-100 h-100 d-flex flex-column justify-content-center">
+                                <i class="fas fa-briefcase fa-2x mb-2"></i>
+                                <span>Create Job Position</span>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('interviews') }}" class="btn btn-outline-warning w-100 h-100 d-flex flex-column justify-content-center">
+                                <i class="fas fa-calendar-plus fa-2x mb-2"></i>
+                                <span>Schedule Interview</span>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="#" class="btn btn-outline-info w-100 h-100 d-flex flex-column justify-content-center">
+                                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                <span>View Analytics</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+</script>
+{% endblock %}

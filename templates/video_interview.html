@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block title %}Video Interview - {{ interview.candidate_name }} - Lumorange Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .video-container {
+        background: #000;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .interview-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .interview-controls {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin: 0 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .control-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .btn-mute {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-mute.muted {
+        background: #dc3545;
+    }
+    
+    .btn-camera {
+        background: #007bff;
+        color: white;
+    }
+    
+    .btn-camera.off {
+        background: #6c757d;
+    }
+    
+    .btn-end {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-record {
+        background: #fd7e14;
+        color: white;
+    }
+    
+    .btn-record.recording {
+        animation: pulse 1.5s ease-in-out infinite alternate;
+    }
+    
+    @keyframes pulse {
+        from { opacity: 0.6; }
+        to { opacity: 1; }
+    }
+    
+    .interview-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .participant-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .status-online {
+        background: #28a745;
+    }
+    
+    .status-offline {
+        background: #dc3545;
+    }
+    
+    .notes-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-top: 2rem;
+    }
+    
+    .jitsi-container {
+        height: 500px;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Interview Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="interview-header">
+                <h3 class="mb-2">
+                    <i class="fas fa-video me-2"></i>
+                    Video Interview Session
+                </h3>
+                <p class="mb-0">{{ interview.position_title }} - Round {{ interview.interview_round }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interview Info -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="interview-info">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Candidate:</strong> {{ interview.candidate_name }}<br>
+                        <strong>Position:</strong> {{ interview.position_title }}<br>
+                        <strong>Date:</strong> 
+                        {% if interview.scheduled_date %}
+                            {% if interview.scheduled_date.__class__.__name__ == 'date' %}
+                                {{ interview.scheduled_date.strftime('%B %d, %Y') }}
+                            {% else %}
+                                {{ interview.scheduled_date }}
+                            {% endif %}
+                        {% else %}
+                            Not scheduled
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Time:</strong> 
+                        {% if interview.scheduled_time %}
+                            {% if interview.scheduled_time.__class__.__name__ == 'time' %}
+                                {{ interview.scheduled_time.strftime('%I:%M %p') }}
+                            {% else %}
+                                {{ interview.scheduled_time }}
+                            {% endif %}
+                        {% else %}
+                            Not scheduled
+                        {% endif %}<br>
+                        <strong>Duration:</strong> {{ interview.duration_minutes }} minutes<br>
+                        <strong>Type:</strong> {{ interview.interview_type }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="participant-card">
+                <h6 class="mb-3">Participants</h6>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="status-indicator status-online"></span>
+                    <span>You (Interviewer)</span>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="status-indicator" id="candidateStatus"></span>
+                    <span>{{ interview.candidate_name }} (Candidate)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Conference Area -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="video-container">
+                <!-- Jitsi Meet Embed -->
+                <div id="jitsi-container" class="jitsi-container"></div>
+                
+                <!-- Interview Controls -->
+                <div class="interview-controls">
+                    <div class="d-flex justify-content-center align-items-center">
+                        <button class="control-btn btn-mute" id="muteBtn" onclick="toggleMute()">
+                            <i class="fas fa-microphone" id="muteIcon"></i>
+                        </button>
+                        <button class="control-btn btn-camera" id="cameraBtn" onclick="toggleCamera()">
+                            <i class="fas fa-video" id="cameraIcon"></i>
+                        </button>
+                        <button class="control-btn btn-record" id="recordBtn" onclick="toggleRecording()">
+                            <i class="fas fa-record-vinyl" id="recordIcon"></i>
+                        </button>
+                        <button class="control-btn btn-end" onclick="endInterview()">
+                            <i class="fas fa-phone-slash"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <small class="text-muted">Meeting ID: {{ meeting_id }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <button class="btn btn-outline-primary btn-sm" onclick="copyMeetingLink()">
+                                    <i class="fas fa-copy me-1"></i>Copy Meeting Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interview Notes -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="notes-section">
+                <h5 class="mb-3">
+                    <i class="fas fa-sticky-note text-primary me-2"></i>
+                    Interview Notes
+                </h5>
+                <form id="notesForm" method="POST" action="{{ url_for('update_interview_notes', interview_id=interview.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Real-time Notes</label>
+                        <textarea class="form-control" id="interviewNotes" name="notes" rows="6" 
+                                  placeholder="Take notes during the interview...">{{ interview.interviewer_notes or '' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Overall Rating (1-5)</label>
+                            <select class="form-select" name="overall_score">
+                                <option value="">Select Rating</option>
+                                <option value="5" {{ 'selected' if interview.overall_score == 5 }}>5 - Excellent</option>
+                                <option value="4" {{ 'selected' if interview.overall_score == 4 }}>4 - Very Good</option>
+                                <option value="3" {{ 'selected' if interview.overall_score == 3 }}>3 - Good</option>
+                                <option value="2" {{ 'selected' if interview.overall_score == 2 }}>2 - Fair</option>
+                                <option value="1" {{ 'selected' if interview.overall_score == 1 }}>1 - Poor</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Recommendation</label>
+                            <select class="form-select" name="recommendation">
+                                <option value="">Select Recommendation</option>
+                                <option value="Strong Hire" {{ 'selected' if interview.recommendation == 'Strong Hire' }}>Strong Hire</option>
+                                <option value="Hire" {{ 'selected' if interview.recommendation == 'Hire' }}>Hire</option>
+                                <option value="Maybe" {{ 'selected' if interview.recommendation == 'Maybe' }}>Maybe</option>
+                                <option value="No Hire" {{ 'selected' if interview.recommendation == 'No Hire' }}>No Hire</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <button type="button" class="btn btn-outline-secondary" onclick="autoSaveNotes()">
+                            <i class="fas fa-save me-1"></i>Auto-save Every 30s
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-1"></i>Save Notes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="notes-section">
+                <h6 class="mb-3">Quick Actions</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-info" onclick="shareScreen()">
+                        <i class="fas fa-desktop me-2"></i>Share Screen
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="sendMessage()">
+                        <i class="fas fa-comment me-2"></i>Send Message
+                    </button>
+                    <button class="btn btn-outline-success" onclick="scheduleFollowup()">
+                        <i class="fas fa-calendar-plus me-2"></i>Schedule Follow-up
+                    </button>
+                </div>
+                
+                <hr class="my-3">
+                
+                <h6 class="mb-3">Interview Checklist</h6>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="intro">
+                    <label class="form-check-label" for="intro">Introduction completed</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="technical">
+                    <label class="form-check-label" for="technical">Technical questions asked</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="experience">
+                    <label class="form-check-label" for="experience">Experience discussed</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="questions">
+                    <label class="form-check-label" for="questions">Candidate questions answered</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="next_steps">
+                    <label class="form-check-label" for="next_steps">Next steps explained</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Meeting Link Modal -->
+<div class="modal fade" id="linkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Share Meeting Link</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Send this link to the candidate:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="meetingLink" value="{{ meeting_url }}" readonly>
+                    <button class="btn btn-primary" onclick="copyToClipboard()">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Jitsi Meet API -->
+<script src="https://meet.jit.si/external_api.js"></script>
+
+<script>
+let jitsiApi;
+let isMuted = false;
+let isCameraOff = false;
+let isRecording = false;
+
+$(document).ready(function() {
+    initializeJitsi();
+    startAutoSave();
+    
+    // Update candidate status periodically
+    setInterval(updateCandidateStatus, 5000);
+});
+
+function initializeJitsi() {
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: '{{ meeting_id }}',
+        width: '100%',
+        height: 500,
+        parentNode: document.querySelector('#jitsi-container'),
+        userInfo: {
+            displayName: 'Interviewer - {{ current_user.username if current_user else "HR Team" }}'
+        },
+        configOverwrite: {
+            prejoinPageEnabled: false,
+            disableDeepLinking: true,
+            startWithAudioMuted: false,
+            startWithVideoMuted: false
+        },
+        interfaceConfigOverwrite: {
+            TOOLBAR_BUTTONS: [
+                'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                'fodeviceselection', 'hangup', 'profile', 'recording',
+                'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone', 'e2ee'
+            ]
+        }
+    };
+
+    jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+    // Event listeners
+    jitsiApi.addEventListener('participantJoined', (participant) => {
+        console.log('Participant joined:', participant);
+        updateCandidateStatus(true);
+    });
+
+    jitsiApi.addEventListener('participantLeft', (participant) => {
+        console.log('Participant left:', participant);
+        updateCandidateStatus(false);
+    });
+
+    jitsiApi.addEventListener('videoConferenceJoined', (participant) => {
+        console.log('Conference joined:', participant);
+        // Update interview status to "In Progress"
+        updateInterviewStatus('In Progress');
+    });
+
+    jitsiApi.addEventListener('videoConferenceLeft', () => {
+        console.log('Conference left');
+        // Option to mark interview as completed
+        if (confirm('Mark this interview as completed?')) {
+            updateInterviewStatus('Completed');
+        }
+    });
+}
+
+function toggleMute() {
+    if (jitsiApi) {
+        if (isMuted) {
+            jitsiApi.executeCommand('toggleAudio');
+            $('#muteIcon').removeClass('fa-microphone-slash').addClass('fa-microphone');
+            $('#muteBtn').removeClass('muted');
+        } else {
+            jitsiApi.executeCommand('toggleAudio');
+            $('#muteIcon').removeClass('fa-microphone').addClass('fa-microphone-slash');
+            $('#muteBtn').addClass('muted');
+        }
+        isMuted = !isMuted;
+    }
+}
+
+function toggleCamera() {
+    if (jitsiApi) {
+        jitsiApi.executeCommand('toggleVideo');
+        if (isCameraOff) {
+            $('#cameraIcon').removeClass('fa-video-slash').addClass('fa-video');
+            $('#cameraBtn').removeClass('off');
+        } else {
+            $('#cameraIcon').removeClass('fa-video').addClass('fa-video-slash');
+            $('#cameraBtn').addClass('off');
+        }
+        isCameraOff = !isCameraOff;
+    }
+}
+
+function toggleRecording() {
+    if (jitsiApi) {
+        if (isRecording) {
+            jitsiApi.executeCommand('stopRecording');
+            $('#recordBtn').removeClass('recording');
+            alert('Recording stopped');
+        } else {
+            jitsiApi.executeCommand('startRecording', {
+                mode: 'stream'
+            });
+            $('#recordBtn').addClass('recording');
+            alert('Recording started');
+        }
+        isRecording = !isRecording;
+    }
+}
+
+function endInterview() {
+    if (confirm('Are you sure you want to end the interview?')) {
+        if (jitsiApi) {
+            jitsiApi.executeCommand('hangup');
+        }
+        
+        // Save notes and redirect
+        $('#notesForm').submit();
+    }
+}
+
+function shareScreen() {
+    if (jitsiApi) {
+        jitsiApi.executeCommand('toggleShareScreen');
+    }
+}
+
+function updateCandidateStatus(isOnline = null) {
+    const statusElement = $('#candidateStatus');
+    
+    if (isOnline === true) {
+        statusElement.removeClass('status-offline').addClass('status-online');
+    } else if (isOnline === false) {
+        statusElement.removeClass('status-online').addClass('status-offline');
+    } else {
+        // Auto-detect based on participants
+        // This would need actual participant data from Jitsi
+        statusElement.addClass('status-offline');
+    }
+}
+
+function copyMeetingLink() {
+    $('#linkModal').modal('show');
+}
+
+function copyToClipboard() {
+    const linkInput = document.getElementById('meetingLink');
+    linkInput.select();
+    document.execCommand('copy');
+    alert('Meeting link copied to clipboard!');
+}
+
+function updateInterviewStatus(status) {
+    $.ajax({
+        url: '{{ url_for("update_interview_status", interview_id=interview.id) }}',
+        method: 'POST',
+        data: { status: status },
+        success: function(response) {
+            console.log('Interview status updated to:', status);
+        }
+    });
+}
+
+function startAutoSave() {
+    setInterval(function() {
+        const notes = $('#interviewNotes').val();
+        if (notes.trim() !== '') {
+            autoSaveNotes();
+        }
+    }, 30000); // Auto-save every 30 seconds
+}
+
+function autoSaveNotes() {
+    const notes = $('#interviewNotes').val();
+    $.ajax({
+        url: '{{ url_for("auto_save_notes", interview_id=interview.id) }}',
+        method: 'POST',
+        data: { notes: notes },
+        success: function() {
+            // Show brief confirmation
+            const btn = $('button[onclick="autoSaveNotes()"]');
+            const originalText = btn.html();
+            btn.html('<i class="fas fa-check me-1"></i>Saved');
+            setTimeout(() => btn.html(originalText), 2000);
+        }
+    });
+}
+
+function sendMessage() {
+    const message = prompt('Send a message to the candidate:');
+    if (message && jitsiApi) {
+        // This would send a chat message through Jitsi
+        alert('Message sending feature will be implemented with Jitsi chat API');
+    }
+}
+
+function scheduleFollowup() {
+    alert('Follow-up scheduling feature will redirect to calendar');
+}
+
+// Form validation for interview completion
+document.addEventListener('DOMContentLoaded', function() {
+    const notesForm = document.getElementById('notesForm');
+    if (notesForm) {
+        notesForm.addEventListener('submit', function(e) {
+            const overallScore = document.querySelector('select[name="overall_score"]').value;
+            const recommendation = document.querySelector('select[name="recommendation"]').value;
+            const notes = document.querySelector('textarea[name="notes"]').value.trim();
+            
+            if (!notes) {
+                e.preventDefault();
+                alert('Please add interview notes before completing the interview.');
+                return false;
+            }
+            
+            if (!overallScore) {
+                e.preventDefault();
+                alert('Please select an overall rating before completing the interview.');
+                return false;
+            }
+            
+            if (!recommendation) {
+                e.preventDefault();
+                alert('Please select a recommendation before completing the interview.');
+                return false;
+            }
+            
+            return confirm('Are you sure you want to complete this interview? This action cannot be undone.');
+        });
+    }
+});
+</script>
+{% endblock %}
